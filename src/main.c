@@ -31,11 +31,11 @@ void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr u
 }
 
 // benchmarks
-void do_nothing() {}
 STRUCT(ArenaAllocator) {
   uptr next;
   uptr end;
 };
+void do_nothing() {}
 void arena_alloc(Thread t, rawptr user_data) {
   ArenaAllocator *arena = (ArenaAllocator *)(user_data);
   uptr size = 1;
@@ -45,25 +45,22 @@ void arena_alloc(Thread t, rawptr user_data) {
 }
 
 void thread_main(Thread t) {
-  // alloc buffer
-  Bytes *buffer = stack_alloc(Bytes);
   ArenaAllocator *arena = stack_alloc(ArenaAllocator);
   if (single_core(t)) {
-    *buffer = page_reserve(GibiByte);
-    *arena = (ArenaAllocator){uptr(buffer->ptr), uptr(buffer->ptr + buffer->size)};
-    // make sure the pages are commited
-    for (iptr i = 0; i < iptr(buffer->size); i += 4 * KibiByte) {
-      atomic_store(&buffer->ptr[i], 0);
+    // make arena
+    Bytes buffer = page_reserve(GibiByte);
+    for (iptr i = 0; i < iptr(buffer.size); i += 4 * KibiByte) {
+      atomic_store(&buffer.ptr[i], 0);
     }
+    *arena = (ArenaAllocator){uptr(buffer.ptr), uptr(buffer.ptr + buffer.size)};
   }
-  barrier_scatter(t, &buffer);
   barrier_scatter(t, &arena);
 
   repeat(0, do_nothing);
   repeat(arena, arena_alloc);
 }
 int main() {
-  // alloc buffer
+  // init state
   _init_console();
   _init_page_fault_handler();
   // start threads and do work
