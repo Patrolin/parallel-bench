@@ -19,7 +19,7 @@ void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr u
   u64 cycles_sum = 0;
   u64 cycles_max = 0;
   for (u64 i = 0; i < repetition_count + WARMUP_COUNT; i += REPEAT_GROUP_SIZE) {
-    // time 100 runs
+    // time `REPEAT_GROUP_SIZE` runs
     u64 cycles_times[REPEAT_GROUP_SIZE];
     for (u64 j = 0; j < REPEAT_GROUP_SIZE; j++) {
       u64 cycles_before = read_cycle_counter();
