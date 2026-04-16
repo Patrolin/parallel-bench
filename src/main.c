@@ -7,25 +7,22 @@
 #define WARMUP_COUNT                100
 #define REPEAT_COUNT                10 * Mega
 #define repeat(user_data, callback) repeat_impl(t, user_data, callback, string(#callback));
-u64 repeat_i = 0;
 void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr user_data), string name) {
-  // get shared ptr
+  // warmup the instruction cache
   for (i32 i = 0; i < WARMUP_COUNT; i++) callback(t, user_data);
-  u64 *i_ptr = stack_alloc(u64);
-  *i_ptr = 0;
-  barrier_scatter(t, i_ptr);
+  // get the repeat count
+  u64 threads_start = global_threads.thread_infos[t].threads_start;
+  u64 threads_end = global_threads.thread_infos[t].threads_end;
+  u64 thread_count = threads_end - threads_start;
+  u64 repetition_count = (REPEAT_COUNT / thread_count) + (t > (REPEAT_COUNT % thread_count));
   // repeat n times
   u64 cycles_start = read_cycle_counter();
-  while (true) {
-    u64 i = atomic_fetch_add(i_ptr, 1);
-    if (i >= REPEAT_COUNT) break;
+  for (u64 i = 0; i < repetition_count; i++) {
     callback(t, user_data);
   }
+  barrier(t);
   u64 cycles_end = read_cycle_counter();
-  barrier(t);
   // print result
-  barrier(t);
-
   if (single_core(t)) {
     f64 cycles_per_iteration = f64(cycles_end - cycles_start) / f64(REPEAT_COUNT);
     printfln("%: % cy", string, name, u64, u64(cycles_per_iteration));
@@ -43,7 +40,6 @@ void arena_alloc(Thread t, rawptr user_data) {
   ArenaAllocator *arena = (ArenaAllocator *)(user_data);
   uptr size = 1;
   byte *ptr = (byte *)(atomic_fetch_add(&arena->next, size));
-  // printfln("arena_alloc: %, %", hex, arena, hex, ptr, hex, arena->end);
   assert(uptr(ptr + size) < arena->end);
   *ptr = 0;
 }
@@ -72,6 +68,5 @@ int main() {
   _init_page_fault_handler();
   // start threads and do work
   u32 logical_core_count = _get_logical_core_count();
-  logical_core_count = 2;
   _start_threads(logical_core_count);
 }
