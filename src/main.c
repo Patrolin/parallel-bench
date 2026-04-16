@@ -88,7 +88,7 @@ int main() {
   _init_console();
   _init_page_fault_handler();
   // start threads and do work
-  u32 logical_core_count = _get_logical_core_count();
-  // logical_core_count = 64;
-  _start_threads(logical_core_count);
+  u32 thread_count = _get_logical_core_count();
+  // thread_count = 64;
+  _start_threads(thread_count);
 }
