@@ -1,4 +1,4 @@
-args := "-march=native -masm=intel -std=c17 -fno-builtin -fno-signed-char"
+args := "-march=native -masm=intel -std=c99 -fno-builtin -fno-signed-char"
 
 EXE_NAME :: "parallel-bench.exe"
 run:
