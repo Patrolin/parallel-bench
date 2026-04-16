@@ -1,0 +1,15 @@
+-march=native
+-masm=intel
+-std=c99
+-fno-builtin
+-fno-signed-char
+-Werror
+-Wconversion
+-Wsign-conversion
+-Wsign-compare
+-Wnullable-to-nonnull-conversion
+-Wuninitialized
+-Wconditional-uninitialized
+-Wswitch
+-Wimplicit-fallthrough
+-DSTB_SPRINTF_IMPLEMENTATION

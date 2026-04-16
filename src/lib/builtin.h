@@ -1,0 +1,457 @@
+#pragma once
+/* IWYU pragma: begin_exports */
+#include <stdbool.h>
+#include <stdint.h>
+/* IWYU pragma: end_exports */
+
+// utils
+#define OVERLOAD1(a1, ...)                                            a1
+#define OVERLOAD2(a1, a2, ...)                                        a2
+#define OVERLOAD3(a1, a2, a3, ...)                                    a3
+#define OVERLOAD4(a1, a2, a3, a4, ...)                                a4
+#define OVERLOAD5(a1, a2, a3, a4, a5, ...)                            a5
+#define OVERLOAD6(a1, a2, a3, a4, a5, a6, ...)                        a6
+#define OVERLOAD7(a1, a2, a3, a4, a5, a6, a7, ...)                    a7
+#define OVERLOAD8(a1, a2, a3, a4, a5, a6, a7, a8, ...)                a8
+#define OVERLOAD9(a1, a2, a3, a4, a5, a6, a7, a8, a9, ...)            a9
+#define OVERLOAD10(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, ...)      a10
+#define OVERLOAD11(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, ...) a11
+
+#define ASSERT1(condition)          _Static_assert((condition), #condition)
+#define ASSERT2(condition, message) _Static_assert((condition), message)
+#define ASSERT(...)                 OVERLOAD3(__VA_ARGS__ __VA_OPT__(, ) ASSERT2, ASSERT1)(__VA_ARGS__)
+#define ASSERT_POWER_OF_TWO(a)      ASSERT(count_ones(uptr, a) == 1)
+#define DISTINCT(type, name) \
+  typedef type name
+#define OPAQUE(name) typedef struct name name
+/* NOTE: helper for self-referential structs */
+#define STRUCT(name)        \
+  typedef struct name name; \
+  struct name
+#define STRUCT_ALIGNED(name, alignment) \
+  typedef struct name name;             \
+  struct alignto(alignment) name
+#define STRUCT_PACKED(name) \
+  typedef struct name name; \
+  struct __attribute__((packed)) name
+#define STRUCT_PACKED_ALIGNED(name, alignment) \
+  typedef struct name name;                    \
+  struct __attribute__((packed)) alignto(alignment) name
+
+// uptr, usize
+#define nil ((void *)0)
+typedef void *rawptr;
+#define rawptr(x) ((rawptr)(x))
+typedef uintptr_t uptr;
+#define uptr(x) ((uptr)(x))
+typedef uintptr_t usize;
+#define usize(x) ((usize)(x))
+enum : usize {
+  Byte = 1,
+  KibiByte = 1024 * Byte,
+  MebiByte = 1024 * KibiByte,
+  GibiByte = 1024 * MebiByte,
+};
+typedef char byte;
+#define byte(x) ((byte)(x))
+ASSERT(sizeof(byte) == 1);
+
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(t)    CONCAT(MIN_, t)
+#define MAX(t)    CONCAT(MAX_, t)
+#define MIN_usize usize(0)
+#define MAX_usize usize(-1)
+#define MIN_uptr  uptr(0)
+#define MAX_uptr  uptr(-1)
+#define MIN_byte  byte(0)
+#define MAX_byte  byte(-1)
+
+typedef intptr_t iptr;
+#define iptr(x) ((iptr)(x))
+typedef intptr_t isize;
+#define isize(x) ((isize)(x))
+
+#define MAX_iptr  iptr(MAX_uptr >> 1)
+#define MIN_iptr  (MAX_iptr + 1)
+#define MAX_isize iptr(MAX_usize >> 1)
+#define MIN_isize (MAX_isize + 1)
+
+// OS_xxx
+#define OS_WINDOWS 0
+#define OS_LINUX   0
+#if _WIN32 || _WIN64
+  #undef OS_WINDOWS
+  #define OS_WINDOWS 1
+#elif __linux__
+  #undef OS_LINUX
+  #define OS_LINUX 1
+#endif
+
+/* NOTE: this is for windows, linux forces it's own stack size... */
+#define OS_MIN_STACK_SIZE         (1 * MebiByte)
+#define VIRTUAL_MEMORY_TO_RESERVE OS_MIN_STACK_SIZE
+
+/* NOTE: SSD block sizes are 512B or 4KiB */
+#define OS_SSD_BLOCK_SIZE_EXPONENT (9)
+#define OS_SSD_BLOCK_SIZE          (1 << OS_SSD_BLOCK_SIZE_EXPONENT)
+ASSERT(OS_SSD_BLOCK_SIZE == 512);
+
+#define OS_PAGE_SIZE_EXPONENT (12)
+#define OS_PAGE_SIZE          (1 << OS_PAGE_SIZE_EXPONENT)
+ASSERT(OS_PAGE_SIZE == 4 * KibiByte);
+
+/* NOTE: huge pages on windows requires admin permissions... */
+#define OS_HUGE_PAGE_SIZE_EXPONENT (21)
+#define OS_HUGE_PAGE_SIZE          (1 << OS_HUGE_PAGE_SIZE_EXPONENT)
+ASSERT(OS_HUGE_PAGE_SIZE == 2 * MebiByte);
+
+// ARCH_xxx
+#define ARCH_X64   0
+#define ARCH_X86   0
+#define ARCH_ARM64 0
+#define ARCH_ARM32 0
+#if __x86_64__
+  #undef ARCH_X64
+  #define ARCH_X64 1
+#elif __i386__
+  #undef ARCH_X86
+  #define ARCH_X86 1
+#elif __aarch64__
+  #undef ARCH_ARM64
+  #define ARCH_ARM64 1
+#elif __arm__
+  #undef ARCH_ARM32
+  #define ARCH_ARM32 1
+#endif
+#define ARCH_IS_64_BIT (ARCH_X64 || ARCH_ARM64)
+#define ARCH_IS_32_BIT (ARCH_X86 || ARCH_ARM32)
+/* NOTE: stack grows downwards on almost all architectures */
+#define ARCH_STACK_DIRECTION (-1)
+
+#define ARCH_MIN_CACHE_LINE_SIZE 64
+/* NOTE: macs can have bigger cache line sizes */
+#define ARCH_MAX_CACHE_LINE_SIZE 128
+
+#if __HAVE_FLOAT16__ || __HAVE_FP16__ || __has_extension(c_float16)
+  #define ARCH_HAS_NATIVE_F16 1
+#else
+  #define ARCH_HAS_NATIVE_F16 0
+#endif
+#if __AVX512BF16__ || __ARM_FEATURE_BF16 || __has_extension(bfloat16_type)
+  #define ARCH_HAS_NATIVE_BF16 1
+#else
+  #define ARCH_HAS_NATIVE_BF16 0
+#endif
+
+// preprocessor helpers
+#define CONCAT_RAW(a, b) a##b
+#define STR_RAW(a)       #a
+#define EXPAND(x)        x
+#define CONCAT(a, b)     CONCAT_RAW(a, b)
+#define STR(a)           STR_RAW(a)
+/* NOTE: clang is stupid, and overwrites outer scope variables with the same name,
+  so we need macro variables to all have different names... */
+#define VAR(name, counter) CONCAT(name##__, counter)
+
+// type keywords
+#define global   static
+#define readonly const
+#define restrict __restrict
+#if defined(__clang__) || defined(__GNUC__)
+  #define nonnull_(...) __attribute__((nonnull(__VA_ARGS__)))
+#else
+  #define nonnull_(...)
+#endif
+#define alignto(n)     __attribute__((aligned(n)))
+#define vector_size(n) __attribute__((vector_size(n)))
+// proc keywords
+#define forward_declare
+#define always_inline_ inline __attribute__((always_inline))
+#define never_inline   __attribute__((noinline))
+#if OS_WINDOWS
+  #define foreign        __declspec(dllimport)
+  #define foreign_export __declspec(dllexport)
+#endif
+// #define stdcall __attribute__((__stdcall__))
+#define naked         __attribute__((naked))
+#define noreturn_     _Noreturn void
+#define flexible(key) __attribute__((counted_by(key)))
+// #define deprecated(msg) __attribute__((deprecated(msg)))
+
+// optimizations
+#define debugger() __builtin_debugtrap()
+#define trap()     __builtin_trap()
+#if ARCH_ARM32 || ARCH_ARM64
+  #define cpu_relax() asm volatile("yield")
+#else /* X86, RISCV */
+  #define cpu_relax() asm volatile("pause")
+#endif
+#define cpu_supports(features_cstring) __builtin_cpu_supports(features_cstring)
+#define read_cycle_counter()           __builtin_readcyclecounter()
+#define read_steady_counter()          __builtin_readsteadycounter()
+/** NOTE: PrefetchMode :: enum {Read, Write, ReadWrite} */
+#define prefetch(ptr, mode, locality) __builtin_prefetch(ptr, mode, locality)
+/* NOTE: Put the block immediately after, and jump over it if the condition is false */
+#define expect_near(condition) __builtin_expect(condition, true)
+/* NOTE: Put the block far away, and jump to it if the condition is true */
+#define expect_far(condition) __builtin_expect(condition, false)
+/* TODO: when to use? */
+#define expect_unpredictable(condition) __builtin_unpredictable(condition)
+#define assume(condition)               __builtin_assume(condition)
+#define assume_noalias(ptr1, ptr2)      __builtin_assume_separate_storage(ptr1, ptr2)
+
+// utf8 strings
+STRUCT(Bytes) {
+  byte *ptr;
+  usize size;
+};
+/* NOTE: don't typedef, so that `readonly cstring` works correctly */
+#define cstring  char *
+#define rcstring readonly char *
+STRUCT(string) {
+  rcstring ptr;
+  usize size;
+};
+/* NOTE: we take the pointer of the cstring directly to avoid a memcpy() */
+#define string(rcstr)        ((string){rcstr, sizeof(rcstr) - 1})
+#define str_slice(str, i, j) ((string){&str.ptr[i], j < i ? 0 : usize(j) - usize(i)})
+bool str_equals(string a, string b) {
+  if (a.size != b.size) return false;
+  usize i = 0;
+  assume(a.size > 0); /* NOTE: prevent optimizing for `a.size == 0` - is this guaranteed to preserve the while loop? */
+  while (i < a.size) {
+    if (a.ptr[i] != b.ptr[i]) return false;
+    i++;
+  }
+  return true;
+}
+
+// assert
+forward_declare noreturn_ abort();
+forward_declare void fprint(uptr file, string str);
+#if OS_WINDOWS
+typedef enum : uptr {
+  STDIN = -10,
+  STDOUT = -11,
+  STDERR = -12,
+} ConsoleHandleEnum;
+#elif OS_LINUX
+typedef enum : uptr {
+  STDIN = 0,
+  STDOUT = 1,
+  STDERR = 2,
+} ConsoleHandleEnum;
+#endif
+#define assert2(condition, message) ({ \
+  if (expect_far(!(condition))) {      \
+    fprint(STDERR, message);           \
+    abort();                           \
+  }                                    \
+})
+#define assert1(condition) assert2(condition, string(" " __FILE__ ":" STR(__LINE__) " assert(" #condition ")\n"))
+#define assert(...)        OVERLOAD3(__VA_ARGS__ __VA_OPT__(, ) assert2, assert1)(__VA_ARGS__)
+
+// CRT
+#if NOLIBC
+extern void *memcpy(void *dest, readonly void *src, usize size) {
+  void *dest_end = dest + size;
+  while (dest < dest_end) {
+    *(byte *)(dest++) = *(byte *)(src++);
+  }
+  return dest;
+}
+extern void *memset(void *ptr, int x, usize size) {
+  assert(x <= 255);
+  byte x_byte = (byte)x;
+  void *ptr_end = ptr + size;
+  while (ptr < ptr_end) {
+    *(byte *)(ptr++) = x_byte;
+  }
+  return ptr;
+}
+#else
+/* IWYU pragma: begin_exports */
+  #include <string.h> /* NOTE: for `memcpy()` */
+/* IWYU pragma: end_exports */
+#endif
+
+// types
+typedef unsigned __int128 u128;
+#define u128(x) ((u128)x)
+typedef uint64_t u64;
+#define u64(x) ((u64)(x))
+typedef uint32_t u32;
+#define u32(x) ((u32)(x))
+typedef uint16_t u16;
+#define u16(x) ((u16)(x))
+typedef uint8_t u8;
+#define u8(x) ((u8)(x))
+
+#define MIN_u128 u128(0)
+#define MAX_u128 u128(-1)
+#define MIN_u64  u64(0)
+#define MAX_u64  u64(-1)
+#define MIN_u32  u32(0)
+#define MAX_u32  u32(-1)
+#define MIN_u16  u16(0)
+#define MAX_u16  u16(-1)
+#define MIN_u8   u8(0)
+#define MAX_u8   u8(-1)
+
+typedef __int128 i128;
+#define i128(x) ((i128)(x))
+typedef int64_t i64;
+#define i64(x) ((i64)(x))
+typedef int32_t i32;
+#define i32(x) ((i32)(x))
+typedef int16_t i16;
+#define i16(x) ((i16)(x))
+typedef int8_t i8;
+#define i8(x) ((i8)(x))
+
+#define MAX_i64 i64(MAX_u64 >> 1)
+#define MIN_i64 (~MAX_i64)
+#define MAX_i32 i32(MAX_u32 >> 1)
+#define MIN_i32 (~MAX_i32)
+#define MAX_i16 i16(MAX_u16 >> 1)
+#define MIN_i16 (~MAX_i16)
+#define MAX_i8  i8(MAX_u8 >> 1)
+#define MIN_i8  (~MAX_i8)
+
+// typedef signed char CICHAR;
+// typedef unsigned char CUCHAR;
+// typedef short CSHORT;
+// typedef unsigned short CUSHORT;
+/* NOTE: 16b or 32b depending on architecture */
+typedef int CINT;
+#define CINT(x) ((CINT)(x))
+typedef unsigned int CUINT;
+#define CUINT(x) ((CUINT)(x))
+// typedef long CLONG;
+// typedef unsigned long CULONG;
+// typedef long long CLONGLONG;
+// typedef unsigned long long CULONGLONG;
+
+typedef double f64;
+#define f64(x) ((f64)(x))
+ASSERT(sizeof(f64) == 8);
+typedef float f32;
+#define f32(x) ((f32)(x))
+ASSERT(sizeof(f32) == 4);
+/* NOTE: If there isn't native support, f16 is implemented by repeatedly converting back and forth between f32... */
+#if ARCH_HAS_NATIVE_F16
+typedef _Float16 f16;
+ASSERT(sizeof(f16) == 2);
+#endif
+#if ARCH_HAS_NATIVE_BF16
+typedef __bf16 bf16;
+ASSERT(sizeof(bf16) == 2);
+#endif
+
+// builtins - https://clang.llvm.org/docs/LanguageExtensions.html#builtin-functions
+#define asm              __asm__
+#define typeof(x)        __typeof__(x)
+#define sizeof_bits(x)   (sizeof(x) * 8)
+#define countof(x)       (isize(sizeof(x)) / isize(sizeof((x)[0])))
+#define alignof(x)       __alignof__(x)
+#define alignof_bits(x)  (alignof(x) * 8)
+#define offsetof(t, key) __builtin_offsetof(t, key)
+
+#define align_up_offset(ptr, align_mask) (-(ptr) & (align_mask))
+#define align_up(ptr, align_mask)        ((ptr) + align_up_offset(ptr, align_mask))
+#define align_down(ptr, align)            ((ptr) & (align - 1))
+#define align_down_offset(ptr, align)     ((ptr) - align_down(ptr, align))
+
+/* NOTE: __builtin_alloca() produces 6 instructions the first time, or 3 when reusing the same size */
+#define with_stack_allocator(stack)
+#define stack_alloc(stack, t)                      (t *)__builtin_alloca_with_align(sizeof(t), alignof_bits(t))
+#define stack_alloc_array(stack, t, count)         (t *)__builtin_alloca_with_align(sizeof(t) * count, alignof_bits(t))
+#define stack_alloc_flexible(stack, t1, t2, count) (t1 *)__builtin_alloca_with_align(sizeof(t1) + sizeof(t2) * count, alignof_bits(t))
+
+#define bitcast(value, t1, t2)         bitcast_impl(__COUNTER__, value, t1, t2)
+#define bitcast_impl(C, value, t1, t2) ({ \
+  ASSERT(sizeof(t1) == sizeof(t2));       \
+  t2 VAR(v, C);                           \
+  *(t1 *)((rawptr)(&VAR(v, C))) = value;  \
+  VAR(v, C);                              \
+})
+#define downcast(t1, v, t2)         downcast_impl(__COUNTER__, t1, v, t2)
+#define downcast_impl(C, t1, v, t2) ({    \
+  ASSERT(sizeof(t2) < sizeof(t1));        \
+  t1 VAR(v1, C) = v;                      \
+  t2 VAR(v2, C) = (t2)VAR(v1, C);         \
+  assert((t1)(VAR(v2, C)) == VAR(v1, C)); \
+  VAR(v2, C);                             \
+})
+#define saturate(t1, v1, t2) ({    \
+  ASSERT(sizeof(t2) < sizeof(t1)); \
+  (t2)(min(t1, v1, (t1)MAX(t2)));  \
+})
+/* NOTE: `defer` and `with` are zero cost abstractions with -O1 or greater on any compiler */
+#define defer(defer_end)           for (bool defer_done__ = 0; !defer_done__; (defer_end), defer_done__ = 1)
+#define with(with_start, with_end) with_impl(__COUNTER__, with_start, with_end)
+#define with_impl(C, with_start, with_end) \
+  bool VAR(with_done, C) = 0;              \
+  for (with_start; !VAR(with_done, C); (with_end), VAR(with_done, C) = 1)
+
+// atomics: https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html
+#define volatile_store(ptr, value) __atomic_store_n(ptr, value, __ATOMIC_RELAXED)
+#define volatile_load(ptr)         __atomic_load_n(ptr, __ATOMIC_RELAXED)
+#define optimizer_fence(value)     asm volatile("" : "+X"(value))
+// #define memory_write_fence() __atomic_thread_fence(__ATOMIC_RELEASE)
+// #define memory_read_fence()  __atomic_thread_fence(__ATOMIC_ACQUIRE)
+#define memory_fence() __atomic_thread_fence(__ATOMIC_SEQ_CST)
+
+#define atomic_store(ptr, value)                           __atomic_store_n((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_load(ptr)                                   __atomic_load_n((ptr), __ATOMIC_SEQ_CST)
+#define atomic_exchange(ptr, value)                        __atomic_exchange_n((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_compare_exchange(ptr, expected, value)      __atomic_compare_exchange_n((ptr), (expected), (value), false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
+#define atomic_compare_exchange_weak(ptr, expected, value) __atomic_compare_exchange_n((ptr), (expected), (value), true, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST)
+#define atomic_fetch_add(ptr, value)                       __atomic_fetch_add((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_add_fetch(ptr, value)                       __atomic_add_fetch((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_fetch_sub(ptr, value)                       __atomic_fetch_sub((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_sub_fetch(ptr, value)                       __atomic_sub_fetch((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_fetch_and(ptr, value)                       __atomic_fetch_and((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_and_fetch(ptr, value)                       __atomic_and_fetch((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_fetch_or(ptr, value)                        __atomic_fetch_or((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_or_fetch(ptr, value)                        __atomic_or_fetch((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_fetch_xor(ptr, value)                       __atomic_fetch_xor((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_xor_fetch(ptr, value)                       __atomic_xor_fetch((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_fetch_nand(ptr, value)                      __atomic_fetch_nand((ptr), (value), __ATOMIC_SEQ_CST)
+#define atomic_nand_fetch(ptr, value)                      __atomic_nand_fetch((ptr), (value), __ATOMIC_SEQ_CST)
+// ASSERT(__atomic_always_lock_free(sizeof(u128), 0)); /* NOTE: effectively a bug in clang - all architectures now support it, but compilers (pretend that they) don't... */
+ASSERT(__atomic_always_lock_free(sizeof(u64), 0));
+ASSERT(__atomic_always_lock_free(sizeof(u32), 0));
+ASSERT(__atomic_always_lock_free(sizeof(u16), 0));
+ASSERT(__atomic_always_lock_free(sizeof(u8), 0));
+
+// bits: https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html
+#define index_first_one_floor(t, x) (t)((sizeof_bits(t) - 1) - (t)__builtin_clzg((t)(x)))
+#define index_first_one_ceil(t, x)  (t)(index_first_one_floor(((t)(x) - 1) << 1));
+#define count_ones(t, x)            (t)(__builtin_popcountg((t)(x)))
+#define count_zeros(t, x)           (t)(__builtin_popcountg(~(t)(x)))
+#define count_parity(t, x)          (count_ones(t, x) & 1)
+
+// overflow: https://gcc.gnu.org/onlinedocs/gcc/Integer-Overflow-Builtins.html
+#define add_overflow(a, b, dest)            __builtin_add_overflow(a, b, dest)
+#define sub_overflow(a, b, dest)            __builtin_sub_overflow(a, b, dest)
+#define mul_overflow(a, b, dest)            __builtin_mul_overflow(a, b, dest)
+#define add_with_carry(a, b, c, carry_dest) _Generic((a), \
+  u64: __builtin_addcll(a, b, c, (void *)carry_dest),     \
+  u32: __builtin_addcl(a, b, c, (void *)carry_dest),      \
+  u16: __builtin_addcs(a, b, c, (void *)carry_dest),      \
+  u8: __builtin_addcb(a, b, c, (void *)carry_dest),       \
+  i64: __builtin_addcll(a, b, c, (void *)carry_dest),     \
+  i32: __builtin_addcl(a, b, c, (void *)carry_dest),      \
+  i16: __builtin_addcs(a, b, c, (void *)carry_dest),      \
+  i8: __builtin_addcb(a, b, c, (void *)carry_dest))
+#define sub_with_borrow(a, b, c, borrow_dest) _Generic((a), \
+  u64: __builtin_subcll(a, b, c, (void *)borrow_dest),      \
+  u32: __builtin_subcl(a, b, c, (void *)borrow_dest),       \
+  u16: __builtin_subcs(a, b, c, (void *)borrow_dest),       \
+  u8: __builtin_subcb(a, b, c, (void *)borrow_dest),        \
+  i64: __builtin_subcll(a, b, c, (void *)borrow_dest),      \
+  i32: __builtin_subcl(a, b, c, (void *)borrow_dest),       \
+  i16: __builtin_subcs(a, b, c, (void *)borrow_dest),       \
+  i8: __builtin_subcb(a, b, c, (void *)borrow_dest))
