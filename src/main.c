@@ -12,10 +12,6 @@ ASSERT((WARMUP_COUNT + REPEAT_COUNT) % REPEAT_GROUP_SIZE == 0);
 // timings
 #define repeat(user_data, callback) repeat_impl(t, user_data, callback, string(#callback));
 void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr user_data), string name) {
-  // get the repeat count
-  u64 threads_start = global_threads.thread_infos[t].threads_start;
-  u64 threads_end = global_threads.thread_infos[t].threads_end;
-  u64 thread_count = threads_end - threads_start;
   // repeat n times
   u64 cycles_count = 0;
   u64 cycles_sum = 0;
