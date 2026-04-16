@@ -4,7 +4,12 @@
 #include "lib/threads.h"
 
 void thread_main(Thread t) {
-  printfln("t: %", u32, t);
+  // get shared ptr
+  u64 n = 0;
+  u64 *n_ptr = &n;
+  barrier_scatter(t, &n_ptr);
+  while (atomic_fetch_add(n_ptr, 1) < Mega) {}
+  printfln("thread %: %", u32, t, hex, *n_ptr);
 }
 int main() {
   // alloc buffer

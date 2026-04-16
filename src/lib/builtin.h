@@ -47,6 +47,11 @@ typedef uintptr_t uptr;
 typedef uintptr_t usize;
 #define usize(x) ((usize)(x))
 enum : usize {
+  Kilo = 1000,
+  Mega = 1000 * Kilo,
+  Giga = 1000 * Mega,
+};
+enum : usize {
   Byte = 1,
   KibiByte = 1024 * Byte,
   MebiByte = 1024 * KibiByte,
@@ -360,8 +365,8 @@ ASSERT(sizeof(bf16) == 2);
 
 #define align_up_offset(ptr, align_mask) (-(ptr) & (align_mask))
 #define align_up(ptr, align_mask)        ((ptr) + align_up_offset(ptr, align_mask))
-#define align_down(ptr, align)            ((ptr) & (align - 1))
-#define align_down_offset(ptr, align)     ((ptr) - align_down(ptr, align))
+#define align_down(ptr, align)           ((ptr) & (align - 1))
+#define align_down_offset(ptr, align)    ((ptr) - align_down(ptr, align))
 
 /* NOTE: __builtin_alloca() produces 6 instructions the first time, or 3 when reusing the same size */
 #define with_stack_allocator(stack)
