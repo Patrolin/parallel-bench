@@ -1,5 +1,6 @@
 #pragma once
 #include "builtin.h"
+#include "fmt.h"
 #include "os.h"
 
 /* NOTE:
@@ -7,13 +8,13 @@
   STARVATION - one thread can be blocked indefinitely (impacts latency)
     LIVELOCK - threads can block each other indefinitely (impacts correctness)
 
-  | NAME                           | BLOCKING | STARVATION | LIVELOCK | O(threads) | EXAMPLE                      |
-  | blocking                       | yes      | yes        | no       | no         | wait_for_mutex(&lock)        |
-  | starvation-free                | yes      | no         | no       | no         | wait_for_ticket_mutex(&lock) |
-  | obstruction-free               | no       | yes        | yes      | no         | ?                            |
-  | lock-free                      | no       | yes        | no       | no         | CAS loops                    |
-  | wait-free                      | no       | no         | no       | yes        | helping                      |
-  | wait-free population oblivious | no       | no         | no       | no         | atomics + UB                 |
+  | NAME                           | BLOCKING | STARVATION | LIVELOCK | COMPLEXITY    | EXAMPLE                       |
+  | blocking                       | yes      | yes        | no       | O(10^threads) | wait_for_mutex(&lock)         |
+  | starvation-free                | yes      | no         | no       | O(10^threads) | wait_for_ticket_mutex(&lock)  |
+  | obstruction-free               | no       | yes        | yes      | O(10^threads) | size 2 obstruction-free deque |
+  | lock-free                      | no       | yes        | no       | O(2^threads)  | CAS loops                     |
+  | wait-free                      | no       | no         | no       | O(threads)    | helping                       |
+  | wait-free population oblivious | no       | no         | no       | O(1)          | atomics + UB                  |
 */
 
 // syscalls
@@ -273,7 +274,7 @@ bool barrier_split_threads(Thread t, u32 n) {
     shared_data->is_first_counter = 0;
     split_data->is_first_counter = 0;
     // -modify threads
-    atomic_store(&split_data->barrier, barrier_stop);
+    atomic_store(&shared_data->barrier, barrier_stop);
     wake_all_on_address(&shared_data->barrier);
   }
   return t < threads_split;

@@ -36,13 +36,14 @@ void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr u
       }
       cycle_times[k] = current;
     }
-    // store the lowest 50% (don't time OS interrupts)
+    // compute metrics
     if (i >= WARMUP_COUNT) {
-      for (u64 j = 0; j < REPEAT_GROUP_SIZE / 2; j++) {
-        cycles_count += 1;
+      for (u64 j = 0; j < REPEAT_GROUP_SIZE; j++) {
         u64 dcycles = cycle_times[j];
+        cycles_count += 1;
         cycles_sum += dcycles;
-        if (dcycles > cycles_max) cycles_max = dcycles;
+        // store max of the lowest 50% (don't time OS interrupts)
+        if (j < REPEAT_GROUP_SIZE / 2 && dcycles > cycles_max) cycles_max = dcycles;
       }
     }
   }
@@ -55,12 +56,55 @@ void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr u
 }
 
 // benchmarks
+STRUCT(TicketMutex) {
+  u32 next;
+  u32 serving;
+};
 STRUCT(ArenaAllocator) {
+  uptr start;
   uptr next;
   uptr end;
+  TicketMutex lock;
+  u32 mutex;
 };
+u32 wait_for_ticket_mutex(TicketMutex *lock) {
+  u32 ticket = atomic_fetch_add(&lock->next, 1);
+  while (atomic_load(&lock->serving) != ticket) cpu_relax();
+  return ticket;
+}
+void release_ticket_mutex(TicketMutex *lock, u32 ticket) {
+  volatile_store(&lock->serving, ticket + 1);
+}
+void wait_for_mutex(u32 *lock) {
+  u32 expected = 0;
+  while (atomic_compare_exchange(lock, &expected, 1)) cpu_relax();
+}
+void release_mutex(u32 *lock) {
+  *lock = 0;
+}
+
 void do_nothing() {}
-void arena_alloc(Thread t, rawptr user_data) {
+void starvation_free_arena_alloc(Thread t, rawptr user_data) {
+  ArenaAllocator *arena = (ArenaAllocator *)(user_data);
+  uptr size = 1;
+  u32 ticket = wait_for_ticket_mutex(&arena->lock);
+  byte *ptr = (byte *)(volatile_load(&arena->next));
+  volatile_store(&arena->next, uptr(ptr + size));
+  release_ticket_mutex(&arena->lock, ticket);
+  assert(uptr(ptr + size) < arena->end);
+  *ptr = 0;
+}
+void lock_free_arena_alloc(Thread t, rawptr user_data) {
+  ArenaAllocator *arena = (ArenaAllocator *)(user_data);
+  uptr size = 1;
+  wait_for_mutex(&arena->mutex);
+  byte *ptr = (byte *)(volatile_load(&arena->next));
+  volatile_store(&arena->next, uptr(ptr + size));
+  release_mutex(&arena->mutex);
+  assert(uptr(ptr + size) < arena->end);
+  *ptr = 0;
+}
+void wait_free_arena_alloc(Thread t, rawptr user_data) {
   ArenaAllocator *arena = (ArenaAllocator *)(user_data);
   uptr size = 1;
   byte *ptr = (byte *)(atomic_fetch_add(&arena->next, size));
@@ -68,6 +112,19 @@ void arena_alloc(Thread t, rawptr user_data) {
   *ptr = 0;
 }
 
+void run_tests(Thread t, u32 thread_count, ArenaAllocator *arena) {
+  if (t == 0) printfln("-- % threads --", u32, thread_count);
+  if (barrier_split_threads(t, thread_count)) {
+    repeat(0, do_nothing);
+    arena->next = arena->start;
+    repeat(arena, wait_free_arena_alloc);
+    arena->next = arena->start;
+    repeat(arena, lock_free_arena_alloc);
+    arena->next = arena->start;
+    repeat(arena, starvation_free_arena_alloc);
+  }
+  barrier_join_threads(t, 0, global_threads.logical_core_count);
+}
 void thread_main(Thread t) {
   ArenaAllocator *arena = stack_alloc(ArenaAllocator);
   if (single_core(t)) {
@@ -76,12 +133,15 @@ void thread_main(Thread t) {
     for (iptr i = 0; i < iptr(buffer.size); i += 4 * KibiByte) {
       atomic_store(&buffer.ptr[i], 0);
     }
-    *arena = (ArenaAllocator){uptr(buffer.ptr), uptr(buffer.ptr + buffer.size)};
+    *arena = (ArenaAllocator){};
+    arena->start = uptr(buffer.ptr);
+    arena->end = uptr(buffer.ptr + buffer.size);
   }
   barrier_scatter(t, &arena);
-
-  repeat(0, do_nothing);
-  repeat(arena, arena_alloc);
+  // run tests
+  for (u32 thread_count = global_threads.logical_core_count; thread_count > 0; thread_count /= 2) {
+    run_tests(t, thread_count, arena);
+  }
 }
 int main() {
   // init state
@@ -89,6 +149,5 @@ int main() {
   _init_page_fault_handler();
   // start threads and do work
   u32 thread_count = _get_logical_core_count();
-  // thread_count = 1;
   _start_threads(thread_count);
 }
