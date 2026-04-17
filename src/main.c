@@ -4,53 +4,45 @@
 #include "lib/threads.h"
 
 // params
-#define WARMUP_COUNT      1000
-#define REPEAT_COUNT      1 * Mega
+#define WARMUP_COUNT      0
+#define REPEAT_COUNT      1000
 #define REPEAT_GROUP_SIZE 1000
-ASSERT((WARMUP_COUNT + REPEAT_COUNT) % REPEAT_GROUP_SIZE == 0);
 
 // timings
 #define repeat(user_data, callback) repeat_impl(t, user_data, callback, string(#callback));
 void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr user_data), string name) {
   // repeat n times
-  u64 cycles_count = 0;
-  u64 cycles_sum = 0;
-  u64 cycles_max = 0;
-  for (u64 i = 0; i < WARMUP_COUNT + REPEAT_COUNT; i += REPEAT_GROUP_SIZE) {
-    // time `REPEAT_GROUP_SIZE` runs
-    u64 cycle_times[REPEAT_GROUP_SIZE];
-    for (u64 j = 0; j < REPEAT_GROUP_SIZE; j++) {
-      u64 cycles_before = read_cycle_counter();
-      callback(t, user_data);
-      u64 cycles_after = read_cycle_counter();
-      cycle_times[j] = cycles_after - cycles_before;
+  u64 results[REPEAT_COUNT];
+  for (i64 i = -WARMUP_COUNT; i < REPEAT_COUNT; i += 1) {
+    u64 cycles_before = read_cycle_counter();
+    for (u64 j = 0; j < REPEAT_GROUP_SIZE; j++) callback(t, user_data);
+    u64 cycles_after = read_cycle_counter();
+    if (i >= 0) results[i] = cycles_after - cycles_before;
+  }
+  // sort the results
+  for (u64 j = 1; j < REPEAT_COUNT; j++) {
+    u64 k = j;
+    u64 current = results[k];
+    for (; k > 0; k--) {
+      u64 prev = results[k - 1];
+      if (prev > current) results[k] = prev;
+      else break;
     }
-    // sort the times
-    for (u64 j = 1; j < REPEAT_GROUP_SIZE; j++) {
-      u64 k = j;
-      u64 current = cycle_times[k];
-      for (; k > 0; k--) {
-        u64 prev = cycle_times[k - 1];
-        if (prev > current) cycle_times[k] = prev;
-        else break;
-      }
-      cycle_times[k] = current;
-    }
-    // compute metrics
-    if (i >= WARMUP_COUNT) {
-      for (u64 j = 0; j < REPEAT_GROUP_SIZE; j++) {
-        u64 dcycles = cycle_times[j];
-        cycles_count += 1;
-        cycles_sum += dcycles;
-        // store max of the lowest 50% (don't time OS interrupts)
-        if (j < REPEAT_GROUP_SIZE / 2 && dcycles > cycles_max) cycles_max = dcycles;
-      }
-    }
+    results[k] = current;
+  }
+  // compute metrics
+  u64 cycles_group_sum = 0;
+  u64 cycles_group_max = 0;
+  for (u64 i = 0; i < REPEAT_COUNT; i++) {
+    u64 dcycles_per_group = results[i];
+    cycles_group_sum += dcycles_per_group;
+    if (i < REPEAT_COUNT / 2 && dcycles_per_group > cycles_group_max) cycles_group_max = dcycles_per_group;
   }
   // print result
   if (single_core(t)) {
-    f64 cycles_mean = f64(cycles_sum) / f64(cycles_count);
-    printfln("  %: % cy (% cy)", string, name, u64, u64(cycles_mean), u64, cycles_max);
+    f64 cycles_mean = f64(cycles_group_sum) / f64(REPEAT_COUNT * REPEAT_GROUP_SIZE);
+    f64 cycles_max = f64(cycles_group_max) / f64(REPEAT_GROUP_SIZE);
+    printfln("  %: % cy (% cy)", string, name, u64, u64(cycles_mean), u64, u64(cycles_max));
   }
   barrier(t);
 }
