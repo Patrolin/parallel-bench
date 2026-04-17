@@ -46,11 +46,10 @@ typedef uintptr_t uptr;
 #define uptr(x) ((uptr)(x))
 typedef uintptr_t usize;
 #define usize(x) ((usize)(x))
-enum : usize {
-  Kilo = 1000,
-  Mega = 1000 * Kilo,
-  Giga = 1000 * Mega,
-};
+
+#define Kilo (1000)
+#define Mega (1000 * Kilo)
+#define Giga (1000 * Mega)
 enum : usize {
   Byte = 1,
   KibiByte = 1024 * Byte,
@@ -193,8 +192,6 @@ ASSERT(OS_HUGE_PAGE_SIZE == 2 * MebiByte);
   #define cpu_relax() asm volatile("pause")
 #endif
 #define cpu_supports(features_cstring) __builtin_cpu_supports(features_cstring)
-#define read_cycle_counter()           __builtin_readcyclecounter()
-#define read_steady_counter()          __builtin_readsteadycounter()
 /** NOTE: PrefetchMode :: enum {Read, Write, ReadWrite} */
 #define prefetch(ptr, mode, locality) __builtin_prefetch(ptr, mode, locality)
 /* NOTE: Put the block immediately after, and jump over it if the condition is false */
@@ -404,8 +401,8 @@ ASSERT(sizeof(bf16) == 2);
 #define volatile_load(ptr)         __atomic_load_n(ptr, __ATOMIC_RELAXED)
 #define optimizer_fence(value)     asm volatile("" : "+X"(value))
 // #define memory_write_fence() __atomic_thread_fence(__ATOMIC_RELEASE)
-// #define memory_read_fence()  __atomic_thread_fence(__ATOMIC_ACQUIRE)
-#define memory_fence() __atomic_thread_fence(__ATOMIC_SEQ_CST)
+#define memory_read_fence() __atomic_thread_fence(__ATOMIC_ACQUIRE)
+#define memory_fence()      __atomic_thread_fence(__ATOMIC_SEQ_CST)
 
 #define atomic_store(ptr, value)                           __atomic_store_n((ptr), (value), __ATOMIC_SEQ_CST)
 #define atomic_load(ptr)                                   __atomic_load_n((ptr), __ATOMIC_SEQ_CST)

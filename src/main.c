@@ -1,37 +1,54 @@
 #include "lib/builtin.h"
 #include "lib/fmt.h"
 #include "lib/mem.h"
+#include "lib/time.h"
 #include "lib/threads.h"
 
 // params
-#define WARMUP_COUNT      0
-#define REPEAT_COUNT      1000
-#define REPEAT_GROUP_SIZE 1000
+#define REPEAT_MEAN_COUNT       10000
+#define REPEAT_PERCENTILE_COUNT 100000
 
 // timings
 #define repeat(user_data, callback) repeat_impl(t, user_data, callback, string(#callback));
 void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr user_data), string name) {
-  // repeat n times
-  u64 results[REPEAT_COUNT];
-  for (i64 i = -WARMUP_COUNT; i < REPEAT_COUNT; i += 1) {
-    u64 cycles_before = read_cycle_counter();
-    for (u64 j = 0; j < REPEAT_GROUP_SIZE; j++) callback(t, user_data);
-    u64 cycles_after = read_cycle_counter();
-    if (i >= 0) results[i] = cycles_after - cycles_before;
+  // measure mean
+  u64 cycles_start = read_cycle_counter();
+  for (u64 i = 0; i < REPEAT_MEAN_COUNT; i++) {
+    callback(t, user_data);
   }
-  // compute metrics
-  u64 group_cycles_sum = 0;
-  u64 group_cycles_max = 0;
-  for (u64 i = 0; i < REPEAT_COUNT; i++) {
+  u64 cycles_sum = read_cycle_counter() - cycles_start;
+  /* TODO: the max is completely unreliable because of OS interrupts
+    percentiles lie about the data -> we need to plot the entire cdf
+  */
+  // measure individual results
+  u64 results[REPEAT_PERCENTILE_COUNT];
+  for (u64 i = 0; i < REPEAT_PERCENTILE_COUNT; i += 1) {
+    u64 cycles_before = read_cycle_counter();
+    callback(t, user_data);
+    u64 cycles_after = read_cycle_counter();
+    results[i] = cycles_after - cycles_before;
+  }
+  // sort the results // TODO: faster sorting algorithm
+  for (u64 j = 1; j < REPEAT_PERCENTILE_COUNT; j++) {
+    u64 k = j;
+    u64 current = results[k];
+    for (; k > 0; k--) {
+      u64 prev = results[k - 1];
+      if (prev > current) results[k] = prev;
+      else break;
+    }
+    results[k] = current;
+  }
+  // compute 99th percentile
+  u64 cycles_percentile = 0;
+  for (u64 i = 0; i < REPEAT_PERCENTILE_COUNT * 99 / 100; i++) {
     u64 dgroup_cycles = results[i];
-    group_cycles_sum += dgroup_cycles;
-    if (dgroup_cycles > group_cycles_max) group_cycles_max = dgroup_cycles;
+    if (dgroup_cycles > cycles_percentile) cycles_percentile = dgroup_cycles;
   }
   // print result
   if (single_core(t)) {
-    f64 cycles_mean = f64(group_cycles_sum) / f64(REPEAT_COUNT * REPEAT_GROUP_SIZE);
-    f64 cycles_max = f64(group_cycles_max) / f64(REPEAT_GROUP_SIZE);
-    printfln("  %: % cy (% cy)", string, name, u64, u64(cycles_mean), u64, u64(cycles_max));
+    f64 cycles_mean = f64(cycles_sum) / f64(REPEAT_MEAN_COUNT);
+    printfln("  %: % cy (% cy)", string, name, u64, u64(cycles_mean), u64, cycles_percentile);
   }
   barrier(t);
 }
@@ -64,8 +81,8 @@ void release_mutex(u32 *lock) {
   volatile_store(lock, 0);
 }
 
-void do_nothing() {}
-void blocking_arena_alloc(Thread t, rawptr user_data) {
+never_inline void do_nothing() {}
+never_inline void blocking_arena_alloc(Thread t, rawptr user_data) {
   ArenaAllocator *arena = (ArenaAllocator *)(user_data);
   uptr size = 1;
   wait_for_mutex(&arena->mutex);
@@ -75,7 +92,7 @@ void blocking_arena_alloc(Thread t, rawptr user_data) {
   assert(uptr(ptr + size) < arena->end);
   *ptr = 0;
 }
-void starvation_free_arena_alloc(Thread t, rawptr user_data) {
+never_inline void starvation_free_arena_alloc(Thread t, rawptr user_data) {
   ArenaAllocator *arena = (ArenaAllocator *)(user_data);
   uptr size = 1;
   u32 ticket = wait_for_ticket_mutex(&arena->lock);
@@ -85,7 +102,7 @@ void starvation_free_arena_alloc(Thread t, rawptr user_data) {
   assert(uptr(ptr + size) < arena->end);
   *ptr = 0;
 }
-void lock_free_arena_alloc(Thread t, rawptr user_data) {
+never_inline void lock_free_arena_alloc(Thread t, rawptr user_data) {
   ArenaAllocator *arena = (ArenaAllocator *)(user_data);
   uptr size = 1;
   uptr next = atomic_load(&arena->next);
@@ -97,7 +114,7 @@ void lock_free_arena_alloc(Thread t, rawptr user_data) {
   assert(uptr(ptr + size) < arena->end);
   *ptr = 0;
 }
-void wait_free_arena_alloc(Thread t, rawptr user_data) {
+never_inline void wait_free_arena_alloc(Thread t, rawptr user_data) {
   ArenaAllocator *arena = (ArenaAllocator *)(user_data);
   uptr size = 1;
   byte *ptr = (byte *)(atomic_fetch_add(&arena->next, size));
@@ -125,8 +142,8 @@ void thread_main(Thread t) {
   if (single_core(t)) {
     // make arena
     Bytes buffer = page_reserve(GibiByte);
-    for (iptr i = 0; i < iptr(buffer.size); i += 4 * KibiByte) {
-      atomic_store(&buffer.ptr[i], 0);
+    for (iptr i = 0; i < iptr(buffer.size); i += 1) {
+      volatile_store(&buffer.ptr[i], 1);
     }
     *arena = (ArenaAllocator){};
     arena->start = uptr(buffer.ptr);
