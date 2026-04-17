@@ -59,7 +59,7 @@ void fprint(FileHandle file, string str) {
 #define sprint1(t1, v1, ptr_end)        CONCAT(sprint_, t1)(v1, ptr_end)
 #define sprint_to_string(ptr_end, size) ((string){ptr_end - iptr(size), size})
 
-#define sprint_size_string(value) (value.size)
+#define sprint_size_string(value) ((value).size)
 usize sprint_string(string str, byte *buffer_end) {
   byte *buffer = buffer_end - str.size;
   for (usize i = 0; i < str.size; i++) {

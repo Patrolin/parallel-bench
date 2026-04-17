@@ -113,7 +113,7 @@ void wait_free_arena_alloc(Thread t, rawptr user_data) {
 }
 
 void run_tests(Thread t, u32 thread_count, ArenaAllocator *arena) {
-  if (t == 0) printfln("-- % threads --", u32, thread_count);
+  if (t == 0) printfln("-- % thread% --", u32, thread_count, string, thread_count > 1 ? string("s") : string(""));
   if (barrier_split_threads(t, thread_count)) {
     repeat(0, do_nothing);
     arena->next = arena->start;
