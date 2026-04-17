@@ -6,7 +6,7 @@
 
 // params
 #define REPEAT_MEAN_COUNT       10000
-#define REPEAT_PERCENTILE_COUNT 100000
+#define REPEAT_PERCENTILE_COUNT 10000
 
 // timings
 #define repeat(user_data, callback) repeat_impl(t, user_data, callback, string(#callback));
@@ -18,7 +18,7 @@ void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr u
   }
   u64 cycles_sum = read_cycle_counter() - cycles_start;
   /* TODO: the max is completely unreliable because of OS interrupts
-    percentiles lie about the data -> we need to plot the entire cdf
+    and percentiles lie about the data -> we need to plot the entire cdf
   */
   // measure individual results
   u64 results[REPEAT_PERCENTILE_COUNT];
@@ -45,8 +45,14 @@ void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr u
     u64 dgroup_cycles = results[i];
     if (dgroup_cycles > cycles_percentile) cycles_percentile = dgroup_cycles;
   }
+  barrier_gather(t, results[REPEAT_PERCENTILE_COUNT - 1]);
   // print result
   if (single_core(t)) {
+    u64 thread_count = global_threads.thread_infos[t].threads_end;
+    for (u64 i = 0; i < thread_count; i++) {
+      u64 max_value = global_threads.values[i];
+      // printfln("MAX[%]: % cy", u64, i, u64, max_value);
+    }
     f64 cycles_mean = f64(cycles_sum) / f64(REPEAT_MEAN_COUNT);
     printfln("  %: % cy (% cy)", string, name, u64, u64(cycles_mean), u64, cycles_percentile);
   }
