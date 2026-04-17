@@ -19,24 +19,13 @@ void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr u
     u64 cycles_after = read_cycle_counter();
     if (i >= 0) results[i] = cycles_after - cycles_before;
   }
-  // sort the results
-  for (u64 j = 1; j < REPEAT_COUNT; j++) {
-    u64 k = j;
-    u64 current = results[k];
-    for (; k > 0; k--) {
-      u64 prev = results[k - 1];
-      if (prev > current) results[k] = prev;
-      else break;
-    }
-    results[k] = current;
-  }
   // compute metrics
   u64 cycles_group_sum = 0;
   u64 cycles_group_max = 0;
   for (u64 i = 0; i < REPEAT_COUNT; i++) {
     u64 dcycles_per_group = results[i];
     cycles_group_sum += dcycles_per_group;
-    if (i < REPEAT_COUNT / 2 && dcycles_per_group > cycles_group_max) cycles_group_max = dcycles_per_group;
+    if (dcycles_per_group > cycles_group_max) cycles_group_max = dcycles_per_group;
   }
   // print result
   if (single_core(t)) {
