@@ -20,17 +20,17 @@ void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr u
     if (i >= 0) results[i] = cycles_after - cycles_before;
   }
   // compute metrics
-  u64 cycles_group_sum = 0;
-  u64 cycles_group_max = 0;
+  u64 group_cycles_sum = 0;
+  u64 group_cycles_max = 0;
   for (u64 i = 0; i < REPEAT_COUNT; i++) {
-    u64 dcycles_per_group = results[i];
-    cycles_group_sum += dcycles_per_group;
-    if (dcycles_per_group > cycles_group_max) cycles_group_max = dcycles_per_group;
+    u64 dgroup_cycles = results[i];
+    group_cycles_sum += dgroup_cycles;
+    if (dgroup_cycles > group_cycles_max) group_cycles_max = dgroup_cycles;
   }
   // print result
   if (single_core(t)) {
-    f64 cycles_mean = f64(cycles_group_sum) / f64(REPEAT_COUNT * REPEAT_GROUP_SIZE);
-    f64 cycles_max = f64(cycles_group_max) / f64(REPEAT_GROUP_SIZE);
+    f64 cycles_mean = f64(group_cycles_sum) / f64(REPEAT_COUNT * REPEAT_GROUP_SIZE);
+    f64 cycles_max = f64(group_cycles_max) / f64(REPEAT_GROUP_SIZE);
     printfln("  %: % cy (% cy)", string, name, u64, u64(cycles_mean), u64, u64(cycles_max));
   }
   barrier(t);
