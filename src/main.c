@@ -45,8 +45,8 @@ STRUCT(ArenaAllocator) {
   uptr start;
   uptr next;
   uptr end;
-  TicketMutex lock;
   u32 mutex;
+  TicketMutex lock;
 };
 u32 wait_for_ticket_mutex(TicketMutex *lock) {
   u32 ticket = atomic_fetch_add(&lock->next, 1);
@@ -61,10 +61,20 @@ void wait_for_mutex(u32 *lock) {
   while (atomic_compare_exchange(lock, &expected, 1)) cpu_relax();
 }
 void release_mutex(u32 *lock) {
-  *lock = 0;
+  volatile_store(lock, 0);
 }
 
 void do_nothing() {}
+void blocking_arena_alloc(Thread t, rawptr user_data) {
+  ArenaAllocator *arena = (ArenaAllocator *)(user_data);
+  uptr size = 1;
+  wait_for_mutex(&arena->mutex);
+  byte *ptr = (byte *)(volatile_load(&arena->next));
+  volatile_store(&arena->next, uptr(ptr + size));
+  release_mutex(&arena->mutex);
+  assert(uptr(ptr + size) < arena->end);
+  *ptr = 0;
+}
 void starvation_free_arena_alloc(Thread t, rawptr user_data) {
   ArenaAllocator *arena = (ArenaAllocator *)(user_data);
   uptr size = 1;
@@ -78,10 +88,12 @@ void starvation_free_arena_alloc(Thread t, rawptr user_data) {
 void lock_free_arena_alloc(Thread t, rawptr user_data) {
   ArenaAllocator *arena = (ArenaAllocator *)(user_data);
   uptr size = 1;
-  wait_for_mutex(&arena->mutex);
-  byte *ptr = (byte *)(volatile_load(&arena->next));
-  volatile_store(&arena->next, uptr(ptr + size));
-  release_mutex(&arena->mutex);
+  uptr next = atomic_load(&arena->next);
+  byte *ptr;
+  for (;;) {
+    ptr = (byte *)(next + size);
+    if (atomic_compare_exchange(&arena->next, &next, uptr(ptr))) break;
+  }
   assert(uptr(ptr + size) < arena->end);
   *ptr = 0;
 }
@@ -98,11 +110,13 @@ void run_tests(Thread t, u32 thread_count, ArenaAllocator *arena) {
   if (barrier_split_threads(t, thread_count)) {
     repeat(0, do_nothing);
     arena->next = arena->start;
-    repeat(arena, wait_free_arena_alloc);
+    repeat(arena, blocking_arena_alloc);
+    arena->next = arena->start;
+    repeat(arena, starvation_free_arena_alloc);
     arena->next = arena->start;
     repeat(arena, lock_free_arena_alloc);
     arena->next = arena->start;
-    repeat(arena, starvation_free_arena_alloc);
+    repeat(arena, wait_free_arena_alloc);
   }
   barrier_join_threads(t, 0, global_threads.logical_core_count);
 }

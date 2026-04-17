@@ -1,6 +1,5 @@
 #pragma once
 #include "builtin.h"
-#include "fmt.h"
 #include "os.h"
 
 /* NOTE:
@@ -8,13 +7,13 @@
   STARVATION - one thread can be blocked indefinitely (impacts latency)
     LIVELOCK - threads can block each other indefinitely (impacts correctness)
 
-  | NAME                           | BLOCKING | STARVATION | LIVELOCK | COMPLEXITY    | EXAMPLE                       |
-  | blocking                       | yes      | yes        | no       | O(10^threads) | wait_for_mutex(&lock)         |
-  | starvation-free                | yes      | no         | no       | O(10^threads) | wait_for_ticket_mutex(&lock)  |
-  | obstruction-free               | no       | yes        | yes      | O(10^threads) | size 2 obstruction-free deque |
-  | lock-free                      | no       | yes        | no       | O(2^threads)  | CAS loops                     |
-  | wait-free                      | no       | no         | no       | O(threads)    | helping                       |
-  | wait-free population oblivious | no       | no         | no       | O(1)          | atomics + UB                  |
+  | NAME                           | BLOCKING | STARVATION | LIVELOCK | COMPLEXITY   | EXAMPLE                       |
+  | blocking                       | yes      | yes        | no       | O(threads)   | wait_for_mutex(&lock)         |
+  | starvation-free                | yes      | no         | no       | O(2^threads) | wait_for_ticket_mutex(&lock)  |
+  | obstruction-free               | no       | yes        | yes      | O(2^threads) | size 2 obstruction-free deque |
+  | lock-free                      | no       | yes        | no       | O(2^threads) | CAS loops                     |
+  | wait-free                      | no       | no         | no       | O(threads)   | helping                       |
+  | wait-free population oblivious | no       | no         | no       | O(1)         | atomics + UB + ?              |
 */
 
 // syscalls
