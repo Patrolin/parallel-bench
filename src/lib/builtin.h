@@ -428,6 +428,8 @@ ASSERT(__atomic_always_lock_free(sizeof(u16), 0));
 ASSERT(__atomic_always_lock_free(sizeof(u8), 0));
 
 // bits: https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html
+#define count_leading_zeros(t, x)   (t)(__builtin_clzg((t)((t)(x))))
+#define count_leading_ones(t, x)    (t)(__builtin_clzg((t)(~(t)(x))))
 #define index_first_one_floor(t, x) (t)((sizeof_bits(t) - 1) - (t)__builtin_clzg((t)(x)))
 #define index_first_one_ceil(t, x)  (t)(index_first_one_floor(((t)(x) - 1) << 1));
 #define count_ones(t, x)            (t)(__builtin_popcountg((t)(x)))

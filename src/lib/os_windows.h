@@ -45,6 +45,33 @@ foreign bool WriteFile(FileHandle file, rcstring buffer, DWORD buffer_size, DWOR
 // windows utils
 foreign DWORD GetLastError();
 foreign WaitResult WaitForSingleObject(Handle handle, DWORD milliseconds);
+usize copy_string_to_cwstring(string str, wchar *buffer) {
+  usize i = 0, j = 0;
+  while (i < str.size) {
+    // parse utf-8
+    u32 codepoint = u32(str.ptr[i]);
+    u32 byte_count = u32(count_leading_ones(u8, codepoint));
+    codepoint = codepoint & (0xff >> byte_count);
+    if (byte_count == 0) byte_count = 1;
+    byte_count = min(byte_count, u32(str.size - i));
+    if (byte_count >= 2) codepoint = (codepoint << 6) | (str.ptr[i + 1] & 0x3f);
+    if (byte_count >= 3) codepoint = (codepoint << 6) | (str.ptr[i + 2] & 0x3f);
+    if (byte_count >= 4) codepoint = (codepoint << 6) | (str.ptr[i + 3] & 0x3f);
+    i += byte_count;
+    // write utf-16
+    if (codepoint < 0x10000) {
+      buffer[j++] = u16(codepoint);
+    } else {
+      u32 diff = codepoint - 0x10000;
+      u16 high = u16(diff >> 10) | 0xd800;
+      u16 low = u16(diff & 0x3ff) | 0xdc00;
+      buffer[j++] = high;
+      buffer[j++] = low;
+    }
+  }
+  buffer[j++] = 0;
+  return j;
+}
 
 // linker flags
 #if NOLIBC
