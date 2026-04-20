@@ -88,6 +88,9 @@ void release_mutex(u32 *lock) {
 }
 
 never_inline void do_nothing() {}
+never_inline void call_barrier(Thread t, rawptr user_data) {
+  barrier(t);
+}
 never_inline void blocking_arena_alloc(Thread t, rawptr user_data) {
   ArenaAllocator *arena = (ArenaAllocator *)(user_data);
   uptr size = 1;
@@ -132,6 +135,7 @@ void run_tests(Thread t, u32 thread_count, ArenaAllocator *arena) {
   if (t == 0) printfln("-- % thread% --", u32, thread_count, string, thread_count > 1 ? string("s") : string(""));
   if (barrier_split_threads(t, thread_count)) {
     repeat(0, do_nothing);
+    repeat(0, call_barrier);
     arena->next = arena->start;
     repeat(arena, blocking_arena_alloc);
     arena->next = arena->start;

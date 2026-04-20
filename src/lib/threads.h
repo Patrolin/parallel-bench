@@ -171,7 +171,12 @@ u32 _get_logical_core_count() {
 // multi-core
 void wait_on_address(u32 *address, u32 while_value) {
   /* NOTE: On Windows, WaitOnAddress() "is allowed to return for other reasons", same thing with futex() on Linux */
+  i64 fast_path_counter = 10000;
   while (atomic_load(address) == while_value) {
+    if (fast_path_counter-- > 0) {
+      cpu_relax();
+      continue;
+    }
 #if OS_WINDOWS
     WaitOnAddress(address, &while_value, sizeof(while_value), TIME_INFINITE);
 #elif OS_LINUX
