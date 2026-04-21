@@ -308,6 +308,12 @@ void barrier_join_threads(Thread t, Thread threads_start, Thread threads_end) {
     wake_all_on_address(&shared_data->join_barrier);
   }
 }
+usize split_work(Thread t, usize total_work) {
+  u32 threads_start = global_threads.thread_infos[t].threads_start;
+  u32 threads_end = global_threads.thread_infos[t].threads_end;
+  u32 thread_count = threads_end - threads_start;
+  return total_work / thread_count + (t < (total_work % thread_count));
+}
 
 // exit
 #if OS_WINDOWS

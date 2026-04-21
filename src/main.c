@@ -7,17 +7,20 @@
 #include "lib/threads.h"
 
 // params
-#define REPEAT_MEAN_COUNT       10000
-#define REPEAT_PERCENTILE_COUNT 10000
+#define REPEAT_MEAN_COUNT       1000000
+#define REPEAT_PERCENTILE_COUNT 100
 
 // timings
 #define repeat(user_data, callback) repeat_impl(t, user_data, callback, string(#callback));
 void repeat_impl(Thread t, rawptr user_data, void (*callback)(Thread t, rawptr user_data), string name) {
+  // split work
+  usize work_count = split_work(t, REPEAT_MEAN_COUNT);
   // measure mean
   u64 cycles_start = read_cycle_counter();
-  for (u64 i = 0; i < REPEAT_MEAN_COUNT; i++) {
+  for (u64 i = 0; i < work_count; i++) {
     callback(t, user_data);
   }
+  barrier(t);
   u64 cycles_sum = read_cycle_counter() - cycles_start;
   /* TODO: the max is completely unreliable because of OS interrupts
     and percentiles lie about the data -> we need to plot the entire cdf
@@ -137,7 +140,7 @@ void run_tests(Thread t, u32 thread_count, ArenaAllocator *arena) {
   if (t == 0) printfln("-- % thread% --", u32, thread_count, string, thread_count > 1 ? string("s") : string(""));
   if (barrier_split_threads(t, thread_count)) {
     repeat(0, do_nothing);
-    repeat(0, call_barrier);
+    if (thread_count > 1) repeat(0, call_barrier);
     arena->next = arena->start;
     repeat(arena, blocking_arena_alloc);
     arena->next = arena->start;
