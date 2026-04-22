@@ -3,6 +3,7 @@
 #include "os.h"
 
 // types
+DISTINCT(Handle, CursorHandle);
 DISTINCT(rwcstring, WindowClassHandle);
 DISTINCT(Handle, WindowHandle);
 #if OS_WINDOWS
@@ -32,7 +33,7 @@ STRUCT(WNDCLASSW) {
   i32 cbWndExtra;
   rawptr hInstance;
   rawptr hIcon;
-  rawptr hCursor;
+  CursorHandle hCursor;
   rawptr hbrBackground;
   rwcstring lpszMenuName;
   rwcstring lpszClassName;
@@ -53,6 +54,7 @@ STRUCT(MSG) {
 
 // syscalls
 #if OS_WINDOWS
+foreign CursorHandle LoadCursorA(rawptr hInstance, wcstring lpCursorName);
 foreign WindowClassHandle RegisterClassW(WNDCLASSW *options);
 foreign WindowHandle CreateWindowExW(
   DWORD dwExStyle,
@@ -80,11 +82,12 @@ STRUCT(WindowOptions) {
 };
 WindowHandle window_open(WindowOptions options) {
 #if OS_WINDOWS
-  // TODO: set default cursor icon
+  CursorHandle cursor = LoadCursorA(0, (wcstring)(32512));
   WNDCLASSW window_class_options = {
     .style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW,
     .lpfnWndProc = options.callback,
     .lpszClassName = options.className,
+    .hCursor = cursor,
   };
   WindowClassHandle window_class = RegisterClassW(&window_class_options);
   assert(window_class != 0);
