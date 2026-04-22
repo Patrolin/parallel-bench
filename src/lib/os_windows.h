@@ -2,7 +2,7 @@
 #include "builtin.h"
 
 // types
-typedef CINT BOOL;
+typedef i32 BOOL;
 typedef u64 QWORD;
 typedef u32 DWORD;
 typedef u16 WORD;
@@ -89,3 +89,4 @@ usize copy_string_to_cwstring(readonly string str, wcstring buffer, usize buffer
   #pragma comment(linker, "/SUBSYSTEM:CONSOLE")
 #endif
 #pragma comment(lib, "Kernel32.lib")
+#pragma comment(lib, "User32.lib")

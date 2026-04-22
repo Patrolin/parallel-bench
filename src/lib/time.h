@@ -1,5 +1,4 @@
 #include "builtin.h"
-#include "fmt.h"
 
 #define read_cycle_counter() __builtin_readcyclecounter()
 // #define read_steady_counter() __builtin_readsteadycounter()

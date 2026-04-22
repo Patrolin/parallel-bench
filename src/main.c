@@ -1,8 +1,6 @@
 #include "lib/builtin.h"
-#include "lib/file.h"
 #include "lib/fmt.h"
 #include "lib/mem.h"
-#include "lib/os_windows.h"
 #include "lib/time.h"
 #include "lib/threads.h"
 
