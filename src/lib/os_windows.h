@@ -8,8 +8,12 @@ typedef u32 DWORD;
 typedef u16 WORD;
 
 typedef uint16_t wchar;
-#define wstring  wchar *
-#define rwstring readonly wchar *
+#define wcstring  wchar *
+#define rwcstring readonly wchar *
+STRUCT(wstring) {
+  rwcstring ptr;
+  usize size;
+};
 
 #if ARCH_IS_64_BIT
   #define WINAPI
@@ -45,7 +49,8 @@ foreign bool WriteFile(FileHandle file, rcstring buffer, DWORD buffer_size, DWOR
 // windows utils
 foreign DWORD GetLastError();
 foreign WaitResult WaitForSingleObject(Handle handle, DWORD milliseconds);
-usize copy_string_to_cwstring(string str, wchar *buffer) {
+usize copy_string_to_cwstring(readonly string str, wcstring buffer, usize buffer_size) {
+  assert(buffer_size >= 2 * (str.size + 1));
   usize i = 0, j = 0;
   while (i < str.size) {
     // parse utf-8
