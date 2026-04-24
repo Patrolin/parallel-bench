@@ -26,8 +26,11 @@ u64 tsc_frequency() {
   if (frequency == 0) {
     i64 ns_before = time_ns();
     i64 tsc_before = i64(read_cycle_counter());
-    while (ns_before + Mega > time_ns()) {}
-    i64 ns_after = time_ns();
+    i64 ns_after;
+    for (;;) {
+      ns_after = time_ns();
+      if (ns_after >= ns_before + Mega) break;
+    }
     i64 tsc_after = i64(read_cycle_counter());
     frequency = u64((tsc_after - tsc_before) * Giga / (ns_after - ns_before));
   }
