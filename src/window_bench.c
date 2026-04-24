@@ -13,7 +13,10 @@ isize __stdcall window_proc(WindowHandle window, u32 type, usize wParam, isize l
   case WM_KEYDOWN: {
     usize cycles = read_cycle_counter();
     usize dcycles = cycles - prev_cycles;
-    printfln("WM_KEYDOWN: % ms", usize, dcycles / (tsc_frequency() / 1000));
+    usize dmilliseconds = dcycles / (tsc_frequency() / 1000);
+    usize round_to_ms = 50;
+    dmilliseconds = ((dmilliseconds + (round_to_ms - 1)) / round_to_ms) * round_to_ms;
+    printfln("WM_KEYDOWN: % ms", usize, dmilliseconds);
     prev_cycles = cycles;
   } break;
   case WM_KEYUP: {
