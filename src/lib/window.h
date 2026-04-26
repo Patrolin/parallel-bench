@@ -123,7 +123,7 @@ bool window_dispatch_message(i64 until_ns) {
   assert(false);
 #endif
 }
-void window_dispatch_messages(i64 *next_frame_ns_ptr, i64 fps) {
+void window_dispatch_messages_until_next_frame(i64 *next_frame_ns_ptr, i64 fps) {
   // get the next frame time (can be multiple steps due to WM_SIZING on windows...)
   i64 next_frame_ns = *next_frame_ns_ptr;
   while (window_message_ns - next_frame_ns >= 0) {

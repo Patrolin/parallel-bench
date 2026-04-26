@@ -39,9 +39,7 @@ int main() {
   i64 next_frame_ns = time_ns();
   window_message_ns = next_frame_ns;
   for (;;) {
-    // handle window events until the next frame
-    window_dispatch_messages(&next_frame_ns, 60);
-    // do something this frame
+    window_dispatch_messages_until_next_frame(&next_frame_ns, 60);
     printfln("tick: %", i64, next_frame_ns);
   }
 }
