@@ -113,7 +113,7 @@ bool window_dispatch_message(i64 until_ns) {
   MSG message;
   DWORD wait_ms = (DWORD)((until_ns - time) / Mega);
   if (MsgWaitForMultipleObjects(0, 0, false, wait_ms, QS_ALLEVENTS) == WAIT_OBJECT_0) {
-    if (PeekMessageW(&message, 0, 0, 0, 0x1)) {
+    while (PeekMessageW(&message, 0, 0, 0, 0x1)) {
       TranslateMessage(&message);
       DispatchMessageW(&message);
     }
