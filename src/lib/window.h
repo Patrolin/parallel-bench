@@ -104,10 +104,10 @@ WindowHandle window_open(WindowOptions options) {
   assert(false);
 #endif
 }
-i64 window_message_time;
+i64 window_message_ns;
 bool window_dispatch_message(i64 until_ns) {
   i64 time = time_ns();
-  window_message_time = time;
+  window_message_ns = time;
   if (time - until_ns > 0) return false;
 #if OS_WINDOWS
   MSG message;
@@ -124,9 +124,9 @@ bool window_dispatch_message(i64 until_ns) {
 #endif
 }
 void window_dispatch_messages(i64 *next_frame_ns_ptr, i64 fps) {
-  // get next frame time (can be multiple steps due to WM_SIZING on windows...)
+  // get the next frame time (can be multiple steps due to WM_SIZING on windows...)
   i64 next_frame_ns = *next_frame_ns_ptr;
-  while (window_message_time - next_frame_ns >= 0) {
+  while (window_message_ns - next_frame_ns >= 0) {
     next_frame_ns += Giga / fps;
   }
   *next_frame_ns_ptr = next_frame_ns;

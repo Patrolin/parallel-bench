@@ -8,14 +8,14 @@ isize __stdcall window_proc(WindowHandle window, u32 type, usize wParam, isize l
   isize result = 0;
   switch (type) {
   case WM_ACTIVATEAPP: {
-    prev_time = window_message_time;
+    prev_time = window_message_ns;
     // printfln("WM_ACTIVATEAPP: %, %", usize, wParam, isize, lParam);
   } break;
   case WM_CLOSE: {
     exit_process(0);
   } break;
   case WM_KEYDOWN: {
-    i64 dnanos = window_message_time - prev_time;
+    i64 dnanos = window_message_ns - prev_time;
     i64 round_to_ms = 50 * Mega;
     dnanos = ((dnanos + (round_to_ms - 1)) / round_to_ms) * round_to_ms;
     printfln("WM_KEYDOWN: % ms", i64, dnanos / Mega);
@@ -36,8 +36,8 @@ int main() {
     .title = L"Title",
     .callback = window_proc,
   });
-  window_message_time = time_ns();
-  i64 next_frame_ns = window_message_time;
+  window_message_ns = time_ns();
+  i64 next_frame_ns = window_message_ns;
   for (;;) {
     // handle window events until the next frame
     window_dispatch_messages(&next_frame_ns, 60);
