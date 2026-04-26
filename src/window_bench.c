@@ -35,7 +35,7 @@ int main() {
     .title = L"Title",
     .callback = window_proc,
   });
-  i64 next_frame_ns = time_ns();
+  i64 next_frame_ns = time_get_ns();
   window_message_ns = next_frame_ns;
   for (;;) {
     window_dispatch_messages_until_next_frame(&next_frame_ns, 60);

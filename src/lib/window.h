@@ -106,12 +106,12 @@ WindowHandle window_open(WindowOptions options) {
 }
 i64 window_message_ns;
 bool window_dispatch_message(i64 until_ns) {
-  i64 time = time_ns();
-  window_message_ns = time;
-  if (time - until_ns > 0) return false;
+  i64 time_ns = time_get_ns();
+  window_message_ns = time_ns;
+  if (time_ns - until_ns > 0) return false;
 #if OS_WINDOWS
   MSG message;
-  DWORD wait_ms = (DWORD)((until_ns - time) / Mega);
+  DWORD wait_ms = (DWORD)((until_ns - time_ns) / Mega);
   if (MsgWaitForMultipleObjects(0, 0, false, wait_ms, QS_ALLEVENTS) == WAIT_OBJECT_0) {
     while (PeekMessageW(&message, 0, 0, 0, 0x1)) {
       TranslateMessage(&message);
