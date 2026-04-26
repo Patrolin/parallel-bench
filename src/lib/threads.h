@@ -315,30 +315,6 @@ usize split_work(Thread t, usize total_work) {
   return total_work / thread_count + (t < (total_work % thread_count));
 }
 
-// exit
-#if OS_WINDOWS
-foreign void ExitProcess(CUINT exit_code);
-#elif OS_LINUX
-noreturn_ exit_group(CINT return_code) {
-  syscall1(SYS_exit_group, (uptr)return_code);
-}
-#endif
-
-noreturn_ exit_process(CINT exit_code) {
-#if OS_WINDOWS
-  ExitProcess((CUINT)exit_code);
-#elif OS_LINUX
-  exit_group(exit_code);
-#else
-  ASSERT(false);
-#endif
-  for (;;);
-}
-noreturn_ abort() {
-  // TODO: maybe just use `trap()`?
-  exit_process(1);
-}
-
 // entry
 forward_declare void thread_main(Thread t);
 CUINT thread_entry(rawptr param) {

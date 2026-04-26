@@ -228,8 +228,31 @@ bool str_equals(string a, string b) {
   return true;
 }
 
+// exit
+#if OS_WINDOWS
+foreign void ExitProcess(unsigned int exit_code);
+#elif OS_LINUX
+noreturn_ exit_group(int return_code) {
+  syscall1(SYS_exit_group, (uptr)return_code);
+}
+#endif
+
+noreturn_ exit_process(int exit_code) {
+#if OS_WINDOWS
+  ExitProcess((unsigned int)(exit_code));
+#elif OS_LINUX
+  exit_group(exit_code);
+#else
+  ASSERT(false);
+#endif
+  for (;;);
+}
+noreturn_ abort() {
+  // TODO: maybe just use `trap()`?
+  exit_process(1);
+}
+
 // assert
-forward_declare noreturn_ abort();
 forward_declare void fprint(uptr file, string str);
 #if OS_WINDOWS
 typedef enum : uptr {

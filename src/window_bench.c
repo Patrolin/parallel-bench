@@ -11,6 +11,9 @@ isize __stdcall window_proc(WindowHandle window, u32 type, usize wParam, isize l
     prev_time = window_message_time;
     // printfln("WM_ACTIVATEAPP: %, %", usize, wParam, isize, lParam);
   } break;
+  case WM_CLOSE: {
+    exit_process(0);
+  } break;
   case WM_KEYDOWN: {
     i64 dnanos = window_message_time - prev_time;
     i64 round_to_ms = 50 * Mega;
@@ -33,10 +36,12 @@ int main() {
     .title = L"Title",
     .callback = window_proc,
   });
-  i64 until_ns = time_ns();
+  window_message_time = time_ns();
+  i64 next_frame_ns = window_message_time;
   for (;;) {
-    until_ns += Giga / 60;
-    while (window_dispatch_message(until_ns));
-    // printfln("tick: %", i64, (until_ns / Mega) % 1000);
+    // handle window events until the next frame
+    window_dispatch_messages(&next_frame_ns, 60);
+    // do something this frame
+    printfln("tick: %", i64, next_frame_ns);
   }
 }

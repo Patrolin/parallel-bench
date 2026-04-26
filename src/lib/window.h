@@ -21,10 +21,12 @@ DISTINCT(Handle, WindowHandle);
   #define WS_MAXIMIZEBOX      0x00010000L
   #define WS_OVERLAPPEDWINDOW (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
   #define CW_USEDEFAULT       ((i32)0x80000000)
+  #define WM_CLOSE            0x0010
   #define WM_ACTIVATEAPP      0x001C
   #define WM_INPUT            0x00FF
   #define WM_KEYDOWN          0x0100
   #define WM_KEYUP            0x0101
+  #define QS_ALLEVENTS        0x1cbf
 
 typedef isize __stdcall (*WindowEventCallback)(WindowHandle window, u32 type, usize wParam, isize lParam);
 STRUCT(WNDCLASSW) {
@@ -73,6 +75,7 @@ foreign WindowHandle CreateWindowExW(
 foreign isize DefWindowProcW(WindowHandle window, u32 type, usize wParam, isize lParam);
 foreign i32 GetMessageW(MSG *message, WindowHandle window, u32 messageFilterMin, u32 messageFilterMax);
 foreign BOOL PeekMessageW(MSG *message, WindowHandle window, u32 messageFilterMin, u32 messageFilterMax, u32 removeMsg);
+foreign DWORD MsgWaitForMultipleObjects(DWORD handles_count, readonly Handle handles, BOOL wait_for_all, DWORD ms, DWORD wake_mask);
 foreign BOOL TranslateMessage(readonly MSG *message);
 foreign isize DispatchMessageW(readonly MSG *message);
 #endif
@@ -104,15 +107,29 @@ WindowHandle window_open(WindowOptions options) {
 i64 window_message_time;
 bool window_dispatch_message(i64 until_ns) {
   i64 time = time_ns();
-  if (time - until_ns > 0) return false;
   window_message_time = time;
+  if (time - until_ns > 0) return false;
 #if OS_WINDOWS
   MSG message;
-  int result = PeekMessageW(&message, 0, 0, 0, 1);
-  TranslateMessage(&message);
-  DispatchMessageW(&message);
+  DWORD wait_ms = (DWORD)((until_ns - time) / Mega);
+  if (MsgWaitForMultipleObjects(0, 0, false, wait_ms, QS_ALLEVENTS) == WAIT_OBJECT_0) {
+    if (PeekMessageW(&message, 0, 0, 0, 0x1)) {
+      TranslateMessage(&message);
+      DispatchMessageW(&message);
+    }
+  }
   return true;
 #else
   assert(false);
 #endif
+}
+void window_dispatch_messages(i64 *next_frame_ns_ptr, i64 fps) {
+  // get next frame time (can be multiple steps due to WM_SIZING on windows...)
+  i64 next_frame_ns = *next_frame_ns_ptr;
+  while (window_message_time - next_frame_ns >= 0) {
+    next_frame_ns += Giga / fps;
+  }
+  *next_frame_ns_ptr = next_frame_ns;
+  // dispatch messages until the next frame time
+  while (window_dispatch_message(next_frame_ns));
 }
