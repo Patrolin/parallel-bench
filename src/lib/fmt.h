@@ -44,7 +44,7 @@ void fprint(FileHandle file, string str) {
 }
 
 // sprint_size(), sprint1()
-#define INVALID_SPRINT_SIZE(...)                     ASSERT(false, "Invalid argument count for sprint_size()")
+#define INVALID_SPRINT_SIZE(...)                     0; ASSERT(false, "Invalid argument count for sprint_size()")
 #define sprint_size(...)                             OVERLOAD11(__VA_ARGS__ __VA_OPT__(, ) sprint_size5, INVALID_SPRINT_SIZE, sprint_size4, INVALID_SPRINT_SIZE, sprint_size3, INVALID_SPRINT_SIZE, sprint_size2, INVALID_SPRINT_SIZE, sprint_size1, INVALID_SPRINT_SIZE, INVALID_SPRINT_SIZE)(__VA_ARGS__)
 #define sprint_size1(t1, v1)                         (CONCAT(sprint_size_, t1)(v1))
 #define sprint_size2(t1, v1, t2, v2)                 (CONCAT(sprint_size_, t1)(v1) + CONCAT(sprint_size_, t2)(v2))
@@ -166,7 +166,7 @@ usize sprint_isize(isize value, byte *buffer_end) {
 }
 
 // sprintf()
-#define INVALID_SPRINTF(...)                      ASSERT(false, "Invalid argument count for sprintf()")
+#define INVALID_SPRINTF(...)                      0; ASSERT(false, "Invalid argument count for sprintf()")
 #define sprintf(ptr_end, format, ...)             OVERLOAD9(__VA_ARGS__ __VA_OPT__(, ) sprintf4, INVALID_SPRINTF, sprintf3, INVALID_SPRINTF, sprintf2, INVALID_SPRINTF, sprintf1, INVALID_SPRINTF, INVALID_SPRINTF)(ptr_end, format, __VA_ARGS__)
 #define sprintf1(ptr_end, format, t1, v1)         sprintf1_impl(__COUNTER__, ptr_end, format, t1, v1)
 #define sprintf1_impl(C, ptr_end, format, t1, v1) ({                           \

@@ -51,10 +51,9 @@ typedef uintptr_t usize;
 #define Mega (1000 * Kilo)
 #define Giga (1000 * Mega)
 enum : usize {
-  Byte = 1,
-  KibiByte = 1024 * Byte,
-  MebiByte = 1024 * KibiByte,
-  GibiByte = 1024 * MebiByte,
+  Kibi = 1024,
+  Mebi = 1024 * Kibi,
+  Gibi = 1024 * Mebi,
 };
 typedef char byte;
 #define byte(x) ((byte)(x))
@@ -103,12 +102,12 @@ ASSERT(OS_SSD_BLOCK_SIZE == 512);
 
 #define OS_PAGE_SIZE_EXPONENT (12)
 #define OS_PAGE_SIZE          (1 << OS_PAGE_SIZE_EXPONENT)
-ASSERT(OS_PAGE_SIZE == 4 * KibiByte);
+ASSERT(OS_PAGE_SIZE == 4 * Kibi);
 
 /* NOTE: huge pages on windows requires admin permissions... */
 #define OS_HUGE_PAGE_SIZE_EXPONENT (21)
 #define OS_HUGE_PAGE_SIZE          (1 << OS_HUGE_PAGE_SIZE_EXPONENT)
-ASSERT(OS_HUGE_PAGE_SIZE == 2 * MebiByte);
+ASSERT(OS_HUGE_PAGE_SIZE == 2 * Mebi);
 
 // ARCH_xxx
 #define ARCH_X64   0

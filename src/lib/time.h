@@ -1,3 +1,4 @@
+#pragma once
 #include "builtin.h"
 
 #define read_cycle_counter() __builtin_readcyclecounter()
@@ -9,7 +10,11 @@ foreign void QueryPerformanceFrequency(i64 *frequency);
 #endif
 i64 time_frequency() {
   static i64 frequency = 0;
+#if OS_WINDOWS
   if (frequency == 0) QueryPerformanceFrequency(&frequency);
+#else
+  assert(false);
+#endif
   return frequency;
 }
 i64 time_ns() {

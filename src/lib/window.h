@@ -1,6 +1,7 @@
 #pragma once
 #include "builtin.h"
 #include "os.h"
+#include "time.h"
 
 // types
 DISTINCT(Handle, CursorHandle);
@@ -71,6 +72,7 @@ foreign WindowHandle CreateWindowExW(
   rawptr lpParam);
 foreign isize DefWindowProcW(WindowHandle window, u32 type, usize wParam, isize lParam);
 foreign i32 GetMessageW(MSG *message, WindowHandle window, u32 messageFilterMin, u32 messageFilterMax);
+foreign BOOL PeekMessageW(MSG *message, WindowHandle window, u32 messageFilterMin, u32 messageFilterMax, u32 removeMsg);
 foreign BOOL TranslateMessage(readonly MSG *message);
 foreign isize DispatchMessageW(readonly MSG *message);
 #endif
@@ -99,15 +101,18 @@ WindowHandle window_open(WindowOptions options) {
   assert(false);
 #endif
 }
-bool window_dispatch_message() {
+i64 window_message_time;
+bool window_dispatch_message(i64 until_ns) {
+  i64 time = time_ns();
+  if (time - until_ns > 0) return false;
+  window_message_time = time;
 #if OS_WINDOWS
   MSG message;
-  int result = GetMessageW(&message, 0, 0, 0);
-  assert(result >= 0);
+  int result = PeekMessageW(&message, 0, 0, 0, 1);
   TranslateMessage(&message);
   DispatchMessageW(&message);
+  return true;
 #else
   assert(false);
 #endif
-  return true;
 }
