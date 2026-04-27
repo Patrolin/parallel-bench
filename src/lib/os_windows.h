@@ -39,29 +39,31 @@ typedef enum : DWORD {
   WAIT_FAILED = -1,
 } WaitResult;
 
+#define ERROR_PATH_NOT_FOUND 3
+#define ERROR_ALREADY_EXISTS 183
+
 // common
 DISTINCT(uptr, Handle);
 DISTINCT(Handle, FileHandle);
 #define INVALID_HANDLE (Handle)(-1)
 foreign bool CloseHandle(Handle handle);
-foreign bool WriteFile(FileHandle file, rcstring buffer, DWORD buffer_size, DWORD *bytes_written, rawptr overlapped);
 
 // windows utils
 foreign DWORD GetLastError();
 foreign WaitResult WaitForSingleObject(Handle handle, DWORD milliseconds);
-usize copy_string_to_cwstring(readonly string str, wcstring buffer, usize buffer_size) {
-  assert(buffer_size >= 2 * (str.size + 1));
+usize copy_string_to_cwstring(readonly string src, wcstring buffer, usize buffer_size) {
+  assert(buffer_size >= 2 * (src.size + 1));
   usize i = 0, j = 0;
-  while (i < str.size) {
+  while (i < src.size) {
     // parse utf-8
-    u32 codepoint = u32(str.ptr[i]);
+    u32 codepoint = u32(src.ptr[i]);
     u32 byte_count = u32(count_leading_ones(u8, codepoint));
     codepoint = codepoint & (0xff >> byte_count);
     if (byte_count == 0) byte_count = 1;
-    byte_count = min(byte_count, u32(str.size - i));
-    if (byte_count >= 2) codepoint = (codepoint << 6) | (str.ptr[i + 1] & 0x3f);
-    if (byte_count >= 3) codepoint = (codepoint << 6) | (str.ptr[i + 2] & 0x3f);
-    if (byte_count >= 4) codepoint = (codepoint << 6) | (str.ptr[i + 3] & 0x3f);
+    byte_count = min(byte_count, u32(src.size - i));
+    if (byte_count >= 2) codepoint = (codepoint << 6) | (src.ptr[i + 1] & 0x3f);
+    if (byte_count >= 3) codepoint = (codepoint << 6) | (src.ptr[i + 2] & 0x3f);
+    if (byte_count >= 4) codepoint = (codepoint << 6) | (src.ptr[i + 3] & 0x3f);
     i += byte_count;
     // write utf-16
     if (codepoint < 0x10000) {

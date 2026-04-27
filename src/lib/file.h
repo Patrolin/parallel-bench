@@ -1,54 +1,113 @@
 #pragma once
 #include "builtin.h"
 #include "os.h"
+#include "os_windows.h"
 
-// syscalls
+// types
 #if OS_WINDOWS
-foreign bool CreateDirectoryW(rwstring dir_path, readonly SECURITY_ATTRIBUTES *security);
+  #define MOVEFILE_REPLACE_EXISTING 0x00000001
+
+  #define GENERIC_READ    0x80000000L
+  #define GENERIC_WRITE   0x40000000L
+  #define GENERIC_EXECUTE 0x20000000L
+  #define GENERIC_ALL     0x10000000L
+
+  #define FILE_SHARE_READ   0x00000001
+  #define FILE_SHARE_WRITE  0x00000002
+  #define FILE_SHARE_DELETE 0x00000004
+
+  #define CREATE_NEW        1
+  #define CREATE_ALWAYS     2
+  #define OPEN_ALWAYS       4
+  #define OPEN_EXISTING     3
+  #define TRUNCATE_EXISTING 5
+
+  #define FILE_ATTRIBUTE_NORMAL 0x00000080
 #elif OS_LINUX
 typedef enum : CUINT {
   O_WRONLY = 1 << 0,
   O_RDWR = 1 << 1,
   /* create if not exists */
   O_CREAT = 1 << 6,
-  /* don't open */
+  /* don't open if exists */
   O_EXCL = 1 << 7,
   /* truncate */
   O_TRUNC = 1 << 9,
   O_DIRECTORY = 1 << 16,
 } FileFlags;
+#endif
+
+// syscalls
+#if OS_WINDOWS
+foreign i32 CreateDirectoryW(rwcstring dir_path, readonly SECURITY_ATTRIBUTES *security);
+foreign bool MoveFileExW(rwcstring src_path, rwcstring dest_path, DWORD flags);
+foreign FileHandle CreateFileW(rwcstring file_path, DWORD access, DWORD share_mode, SECURITY_ATTRIBUTES *lpSecurityAttributes, DWORD creation_disposition, DWORD flags, Handle template_file);
+foreign bool WriteFile(FileHandle file, rcstring buffer, DWORD buffer_size, DWORD *bytes_written, rawptr overlapped);
+#elif OS_LINUX
 isize open(rcstring path, FileFlags flags, CUINT mode) {
   return syscall3(SYS_open, (uptr)path, flags, mode);
 }
 #endif
 
+// dir
 void create_dir_if_not_exists(string dir_path) {
-  wchar wdir_path[dir_path.size];
-  copy_string_to_cwstring(dir_path, wdir_path);
 #if OS_WINDOWS
-  CreateDirectoryW(wdir_path, 0);
+  wchar wdir_path[dir_path.size + 1];
+  copy_string_to_cwstring(dir_path, wdir_path, sizeof(wdir_path));
+  assert(CreateDirectoryW(wdir_path, 0) != ERROR_PATH_NOT_FOUND);
+#elif OS_LINUX
+  char cdir_path[dir_path.size + 1];
+  copy_to_cstring(dir_path, cdir_path, sizeof(cdir_path));
+  assert(false);
 #else
   assert(false);
 #endif
 }
 
-/*
-create_dir_if_not_exists :: proc(dir_path: string) {
-        when ODIN_OS == .Windows {
-                CreateDirectoryW(&copy_string_to_cwstr(dir_path)[0], nil)
-                err := GetLastError()
-                ok := err != .ERROR_PATH_NOT_FOUND
-        } else when ODIN_OS == .Linux {
-                cbuffer: [WINDOWS_MAX_PATH]byte = ---
-                cdir_path, _ := copy_to_cstring(dir_path, cbuffer[:])
-                err := mkdir(cdir_path)
-                fmt.printfln("err: %v", err)
-                ok := err == 0 || Errno(err) == .EEXIST
-        } else {
-                assert(false)
-        }
-        fmt.assertf(ok, "Failed to create directory: '%v'", dir_path)
+// file
+void move_path_atomically(string src_path, string dest_path) {
+#if OS_WINDOWS
+  wchar wsrc_path[src_path.size + 1];
+  wchar wdest_path[src_path.size + 1];
+  copy_string_to_cwstring(src_path, wsrc_path, sizeof(wsrc_path));
+  copy_string_to_cwstring(dest_path, wdest_path, sizeof(wdest_path));
+  assert(MoveFileExW(wsrc_path, wdest_path, MOVEFILE_REPLACE_EXISTING));
+#else
+  assert(false);
+#endif
 }
+void write_entire_file_atomically(string file_path, string content) {
+  // get temp file path
+  string TMP_SUFFIX = string(".tmp");
+  char tmp_path_buffer[file_path.size + TMP_SUFFIX.size];
+  str_concat(file_path, TMP_SUFFIX, tmp_path_buffer, sizeof(tmp_path_buffer));
+  string tmp_file_path = (string){tmp_path_buffer, sizeof(tmp_path_buffer)};
+  // open temp file
+#if OS_WINDOWS
+  wchar wtmp_file_path[tmp_file_path.size + 1];
+  copy_string_to_cwstring(tmp_file_path, wtmp_file_path, sizeof(wtmp_file_path));
+  FileHandle tmp_file = CreateFileW(wtmp_file_path, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+#else
+  assert(false);
+#endif
+  // write to temp file
+  u32 total_bytes_written = 0;
+  u32 bytes_written;
+  for (;;) {
+    i64 bytes_to_write = i64(total_bytes_written) - i64(content.size);
+    if (bytes_to_write <= 0) break;
+#if OS_WINDOWS
+    assert(WriteFile(tmp_file, &content.ptr[total_bytes_written], u32(bytes_to_write), &bytes_written, 0));
+    total_bytes_written += bytes_written;
+#else
+    assert(false);
+#endif
+  }
+  // atomically move temp file to file_path
+  move_path_atomically(tmp_file_path, file_path);
+}
+
+/*
 move_path_atomically :: proc(src_path, dest_path: string) {
         when ODIN_OS == .Windows {
                 result := MoveFileExW(&copy_string_to_cwstr(src_path)[0],

@@ -202,32 +202,6 @@ ASSERT(OS_HUGE_PAGE_SIZE == 2 * Mebi);
 #define assume(condition)               __builtin_assume(condition)
 #define assume_noalias(ptr1, ptr2)      __builtin_assume_separate_storage(ptr1, ptr2)
 
-// utf8 strings
-STRUCT(Bytes) {
-  byte *ptr;
-  usize size;
-};
-/* NOTE: don't typedef, so that `readonly cstring` works correctly */
-#define cstring  char *
-#define rcstring readonly char *
-STRUCT(string) {
-  rcstring ptr;
-  usize size;
-};
-/* NOTE: we take the pointer of the cstring directly to avoid a memcpy() */
-#define string(rcstr)        ((string){rcstr, sizeof(rcstr) - 1})
-#define str_slice(str, i, j) ((string){&str.ptr[i], j < i ? 0 : usize(j) - usize(i)})
-bool str_equals(string a, string b) {
-  if (a.size != b.size) return false;
-  usize i = 0;
-  assume(a.size > 0); /* NOTE: prevent optimizing for `a.size == 0` - is this guaranteed to preserve the while loop? */
-  while (i < a.size) {
-    if (a.ptr[i] != b.ptr[i]) return false;
-    i++;
-  }
-  return true;
-}
-
 // exit
 #if OS_WINDOWS
 foreign void ExitProcess(unsigned int exit_code);
@@ -253,6 +227,7 @@ noreturn_ abort() {
 }
 
 // assert
+typedef struct string string;
 forward_declare void fprint(uptr file, string str);
 #if OS_WINDOWS
 typedef enum : uptr {
@@ -275,6 +250,38 @@ typedef enum : uptr {
 })
 #define assert1(condition) assert2(condition, string(" " __FILE__ ":" STR(__LINE__) " assert(" #condition ")\n"))
 #define assert(...)        OVERLOAD3(__VA_ARGS__ __VA_OPT__(, ) assert2, assert1)(__VA_ARGS__)
+
+// utf8 strings
+STRUCT(Bytes) {
+  byte *ptr;
+  usize size;
+};
+/* NOTE: don't typedef, so that `readonly cstring` works correctly */
+#define cstring  char *
+#define rcstring readonly char *
+struct string {
+  rcstring ptr;
+  usize size;
+};
+/* NOTE: we take the pointer of the cstring directly to avoid a memcpy() */
+#define string(rcstr)        ((string){rcstr, sizeof(rcstr) - 1})
+#define str_slice(str, i, j) ((string){&str.ptr[i], j < i ? 0 : usize(j) - usize(i)})
+bool str_equals(string a, string b) {
+  if (a.size != b.size) return false;
+  usize i = 0;
+  assume(a.size > 0); /* NOTE: prevent optimizing for `a.size == 0` - is this guaranteed to preserve the while loop? */
+  while (i < a.size) {
+    if (a.ptr[i] != b.ptr[i]) return false;
+    i++;
+  }
+  return true;
+}
+void str_concat(string left, string right, char *buffer, usize buffer_size) {
+  assert(left.size + right.size <= buffer_size);
+  usize i = 0;
+  for (; i < left.size; i++) buffer[i] = left.ptr[i];
+  for (; i < left.size + right.size; i++) buffer[i] = right.ptr[i];
+}
 
 // CRT
 #if NOLIBC
