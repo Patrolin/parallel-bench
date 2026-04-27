@@ -41,7 +41,7 @@ typedef enum : CUINT {
 #if OS_WINDOWS
 foreign i32 CreateDirectoryW(rwcstring dir_path, readonly SECURITY_ATTRIBUTES *security);
 foreign bool MoveFileExW(rwcstring src_path, rwcstring dest_path, DWORD flags);
-foreign FileHandle CreateFileW(rwcstring file_path, DWORD access, DWORD share_mode, SECURITY_ATTRIBUTES *lpSecurityAttributes, DWORD creation_disposition, DWORD flags, Handle template_file);
+foreign FileHandle CreateFileW(rwcstring file_path, DWORD access, DWORD share_mode, SECURITY_ATTRIBUTES *security, DWORD disposition, DWORD flags, Handle template_file);
 foreign bool WriteFile(FileHandle file, rcstring buffer, DWORD buffer_size, DWORD *bytes_written, rawptr overlapped);
 #elif OS_LINUX
 isize open(rcstring path, FileFlags flags, CUINT mode) {
