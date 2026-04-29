@@ -280,7 +280,7 @@ void str_concat(string left, string right, char *buffer, usize buffer_size) {
   assert(left.size + right.size <= buffer_size);
   usize i = 0;
   for (; i < left.size; i++) buffer[i] = left.ptr[i];
-  for (; i < left.size + right.size; i++) buffer[i] = right.ptr[i];
+  for (usize j = 0; j < right.size; j++) buffer[i++] = right.ptr[j];
 }
 
 // CRT

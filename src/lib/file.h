@@ -1,5 +1,6 @@
 #pragma once
 #include "builtin.h"
+#include "fmt.h"
 #include "os.h"
 #include "os_windows.h"
 
@@ -42,7 +43,6 @@ typedef enum : CUINT {
 foreign i32 CreateDirectoryW(rwcstring dir_path, readonly SECURITY_ATTRIBUTES *security);
 foreign bool MoveFileExW(rwcstring src_path, rwcstring dest_path, DWORD flags);
 foreign FileHandle CreateFileW(rwcstring file_path, DWORD access, DWORD share_mode, SECURITY_ATTRIBUTES *security, DWORD disposition, DWORD flags, Handle template_file);
-foreign bool WriteFile(FileHandle file, rcstring buffer, DWORD buffer_size, DWORD *bytes_written, rawptr overlapped);
 #elif OS_LINUX
 isize open(rcstring path, FileFlags flags, CUINT mode) {
   return syscall3(SYS_open, (uptr)path, flags, mode);
@@ -71,7 +71,9 @@ void move_path_atomically(string src_path, string dest_path) {
   wchar wdest_path[src_path.size + 1];
   copy_string_to_cwstring(src_path, wsrc_path, sizeof(wsrc_path));
   copy_string_to_cwstring(dest_path, wdest_path, sizeof(wdest_path));
-  assert(MoveFileExW(wsrc_path, wdest_path, MOVEFILE_REPLACE_EXISTING));
+  bool ok = MoveFileExW(wsrc_path, wdest_path, MOVEFILE_REPLACE_EXISTING);
+  if (!ok) { printfln("GetLastError(): %", u32, GetLastError()); }
+  assert(ok, string("Failed to move file\n"));
 #else
   assert(false);
 #endif
@@ -82,27 +84,34 @@ void write_entire_file_atomically(string file_path, string content) {
   char tmp_path_buffer[file_path.size + TMP_SUFFIX.size];
   str_concat(file_path, TMP_SUFFIX, tmp_path_buffer, sizeof(tmp_path_buffer));
   string tmp_file_path = (string){tmp_path_buffer, sizeof(tmp_path_buffer)};
-  // open temp file
+  // open the temp file
 #if OS_WINDOWS
   wchar wtmp_file_path[tmp_file_path.size + 1];
   copy_string_to_cwstring(tmp_file_path, wtmp_file_path, sizeof(wtmp_file_path));
   FileHandle tmp_file = CreateFileW(wtmp_file_path, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+  assert(tmp_file != 0);
 #else
   assert(false);
 #endif
-  // write to temp file
-  u32 total_bytes_written = 0;
+  // write to the temp file
+  u32 i = 0;
   u32 bytes_written;
   for (;;) {
-    i64 bytes_to_write = i64(total_bytes_written) - i64(content.size);
+    i64 bytes_to_write = i64(content.size) - i64(i);
     if (bytes_to_write <= 0) break;
 #if OS_WINDOWS
-    assert(WriteFile(tmp_file, &content.ptr[total_bytes_written], u32(bytes_to_write), &bytes_written, 0));
-    total_bytes_written += bytes_written;
+    assert(WriteFile(tmp_file, &content.ptr[i], u32(bytes_to_write), &bytes_written, 0));
+    i += bytes_written;
 #else
     assert(false);
 #endif
   }
+  // close the temp file
+#if OS_WINDOWS
+  CloseHandle(tmp_file);
+#else
+  assert(false);
+#endif
   // atomically move temp file to file_path
   move_path_atomically(tmp_file_path, file_path);
 }

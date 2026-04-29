@@ -47,6 +47,7 @@ DISTINCT(uptr, Handle);
 DISTINCT(Handle, FileHandle);
 #define INVALID_HANDLE (Handle)(-1)
 foreign bool CloseHandle(Handle handle);
+foreign bool WriteFile(FileHandle file, rcstring buffer, DWORD buffer_size, DWORD *bytes_written, rawptr overlapped);
 
 // windows utils
 foreign DWORD GetLastError();
