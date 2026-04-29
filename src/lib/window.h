@@ -21,12 +21,15 @@ DISTINCT(WindowHandle, Handle);
   #define WS_MAXIMIZEBOX      0x00010000L
   #define WS_OVERLAPPEDWINDOW (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
   #define CW_USEDEFAULT       ((i32)0x80000000)
+  #define WM_ACTIVATE         0x0006
   #define WM_CLOSE            0x0010
-  #define WM_ACTIVATEAPP      0x001C
   #define WM_INPUT            0x00FF
   #define WM_KEYDOWN          0x0100
   #define WM_KEYUP            0x0101
   #define QS_ALLEVENTS        0x1cbf
+  #define WA_INACTIVE         0
+  #define WA_ACTIVE           1
+  #define WA_CLICKACTIVE      2
 
 typedef isize __stdcall (*WindowEventCallback)(WindowHandle window, u32 type, usize wParam, isize lParam);
 STRUCT(WNDCLASSW) {
