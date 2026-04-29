@@ -51,12 +51,10 @@ isize open(rcstring path, FileFlags flags, CUINT mode) {
 // dir
 void create_dir_if_not_exists(string dir_path) {
 #if OS_WINDOWS
-  wchar wdir_path[dir_path.size + 1];
-  copy_string_to_cwstring(dir_path, wdir_path, sizeof(wdir_path));
-  assert(CreateDirectoryW(wdir_path, 0) != ERROR_PATH_NOT_FOUND);
+  wstring wdir_path = tprint_to_wcstring(dir_path);
+  assert(CreateDirectoryW(wdir_path.ptr, 0) != ERROR_PATH_NOT_FOUND);
 #elif OS_LINUX
-  char cdir_path[dir_path.size + 1];
-  copy_to_cstring(dir_path, cdir_path, sizeof(cdir_path));
+  cstring cstr = tprint_to_cstring(dir_path);
   assert(false);
 #else
   assert(false);
@@ -66,11 +64,9 @@ void create_dir_if_not_exists(string dir_path) {
 // file
 void move_path_atomically(string src_path, string dest_path) {
 #if OS_WINDOWS
-  wchar wsrc_path[src_path.size + 1];
-  wchar wdest_path[src_path.size + 1];
-  copy_string_to_cwstring(src_path, wsrc_path, sizeof(wsrc_path));
-  copy_string_to_cwstring(dest_path, wdest_path, sizeof(wdest_path));
-  bool ok = MoveFileExW(wsrc_path, wdest_path, MOVEFILE_REPLACE_EXISTING);
+  wstring wsrc_path = tprint_to_wcstring(src_path);
+  wstring wdest_path = tprint_to_wcstring(dest_path);
+  bool ok = MoveFileExW(wsrc_path.ptr, wdest_path.ptr, MOVEFILE_REPLACE_EXISTING);
   if (!ok) { printfln("GetLastError(): %", u32, GetLastError()); }
   assert(ok, string("Failed to move file\n"));
 #else
@@ -81,9 +77,8 @@ void write_entire_file_atomically(string file_path, string content) {
   // open the temp file
   string tmp_file_path = tprintf("%.tmp", string, file_path);
 #if OS_WINDOWS
-  wchar wtmp_file_path[tmp_file_path.size + 1];
-  copy_string_to_cwstring(tmp_file_path, wtmp_file_path, sizeof(wtmp_file_path));
-  FileHandle tmp_file = CreateFileW(wtmp_file_path, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+  wstring wtmp_file_path = tprint_to_wcstring(tmp_file_path);
+  FileHandle tmp_file = CreateFileW(wtmp_file_path.ptr, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
   assert(tmp_file != 0);
 #else
   assert(false);

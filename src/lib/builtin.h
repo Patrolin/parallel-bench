@@ -396,8 +396,8 @@ ASSERT(sizeof(bf16) == 2);
 
 /* NOTE: __builtin_alloca() produces 6 instructions the first time, or 3 when reusing the same size */
 #define stack_alloc(t)                      (t *)__builtin_alloca_with_align(sizeof(t), alignof_bits(t))
-#define stack_alloc_array(t, count)         (t *)__builtin_alloca_with_align(sizeof(t) * count, alignof_bits(t))
-#define stack_alloc_flexible(t1, t2, count) (t1 *)__builtin_alloca_with_align(sizeof(t1) + sizeof(t2) * count, alignof_bits(t))
+#define stack_alloc_array(t, count)         (t *)__builtin_alloca_with_align(sizeof(t) * (count), alignof_bits(t))
+#define stack_alloc_flexible(t1, t2, count) (t1 *)__builtin_alloca_with_align(sizeof(t1) + sizeof(t2) * (count), alignof_bits(t1))
 
 #define bitcast(value, t1, t2)         bitcast_impl(__COUNTER__, value, t1, t2)
 #define bitcast_impl(C, value, t1, t2) ({ \

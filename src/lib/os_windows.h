@@ -13,7 +13,7 @@ typedef uint16_t wchar;
 #define rwcstring readonly wchar *
 STRUCT(wstring) {
   rwcstring ptr;
-  usize size;
+  usize count;
 };
 
 #if ARCH_IS_64_BIT
@@ -53,8 +53,8 @@ foreign bool WriteFile(FileHandle file, rcstring buffer, DWORD buffer_size, DWOR
 // windows utils
 foreign DWORD GetLastError();
 foreign WaitResult WaitForSingleObject(Handle handle, DWORD milliseconds);
-usize copy_string_to_cwstring(readonly string src, wcstring buffer, usize buffer_size) {
-  assert(buffer_size >= 2 * (src.size + 1));
+usize sprint_to_wcstring(readonly string src, wcstring buffer, usize buffer_count) {
+  assert(buffer_count >= src.size + 1);
   usize i = 0, j = 0;
   while (i < src.size) {
     // parse utf-8
@@ -81,6 +81,11 @@ usize copy_string_to_cwstring(readonly string src, wcstring buffer, usize buffer
   buffer[j++] = 0;
   return j;
 }
+#define tprint_to_wcstring(src) ({                         \
+  wcstring wcstr = stack_alloc_array(wchar, src.size + 1); \
+  sprint_to_wcstring(src, wcstr, src.size + 1);            \
+  (wstring){wcstr, src.size};                              \
+})
 
 // linker flags
 #if NOLIBC
