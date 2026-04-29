@@ -66,9 +66,7 @@ void move_path_atomically(string src_path, string dest_path) {
 #if OS_WINDOWS
   wstring wsrc_path = tprint_to_wcstring(src_path);
   wstring wdest_path = tprint_to_wcstring(dest_path);
-  bool ok = MoveFileExW(wsrc_path.ptr, wdest_path.ptr, MOVEFILE_REPLACE_EXISTING);
-  if (!ok) { printfln("GetLastError(): %", u32, GetLastError()); }
-  assert(ok, string("Failed to move file\n"));
+  assert(MoveFileExW(wsrc_path.ptr, wdest_path.ptr, MOVEFILE_REPLACE_EXISTING));
 #else
   assert(false);
 #endif
