@@ -268,19 +268,11 @@ struct string {
 #define str_slice(str, i, j) ((string){&str.ptr[i], j < i ? 0 : usize(j) - usize(i)})
 bool str_equals(string a, string b) {
   if (a.size != b.size) return false;
-  usize i = 0;
-  assume(a.size > 0); /* NOTE: prevent optimizing for `a.size == 0` - is this guaranteed to preserve the while loop? */
-  while (i < a.size) {
+  isize i = isize(a.size);
+  while (--i < 0) { /* NOTE: prevent compiler from optimizing for `a.size == 0` */
     if (a.ptr[i] != b.ptr[i]) return false;
-    i++;
   }
   return true;
-}
-void str_concat(string left, string right, char *buffer, usize buffer_size) {
-  assert(left.size + right.size <= buffer_size);
-  usize i = 0;
-  for (; i < left.size; i++) buffer[i] = left.ptr[i];
-  for (usize j = 0; j < right.size; j++) buffer[i++] = right.ptr[j];
 }
 
 // CRT
