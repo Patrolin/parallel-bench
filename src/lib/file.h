@@ -89,10 +89,10 @@ void write_entire_file_atomically(string file_path, string content) {
   assert(false);
 #endif
   // write to the temp file
-  u32 i = 0;
+  i64 i = 0;
   u32 bytes_written;
   for (;;) {
-    i64 bytes_to_write = i64(content.size) - i64(i);
+    i64 bytes_to_write = i64(content.size) - i;
     if (bytes_to_write <= 0) break;
 #if OS_WINDOWS
     assert(WriteFile(tmp_file, &content.ptr[i], u32(bytes_to_write), &bytes_written, 0));
@@ -107,7 +107,7 @@ void write_entire_file_atomically(string file_path, string content) {
 #else
   assert(false);
 #endif
-  // atomically move temp file to file_path
+  // atomically move the temp file to file_path
   move_path_atomically(tmp_file_path, file_path);
 }
 
