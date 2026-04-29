@@ -1,2 +1,5 @@
 *.exe
+*.ilk
+*.pdb
+*.rdi
 tmp.c
