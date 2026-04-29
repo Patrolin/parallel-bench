@@ -4,9 +4,9 @@
 #include "time.h"
 
 // types
-DISTINCT(Handle, CursorHandle);
-DISTINCT(rwcstring, WindowClassHandle);
-DISTINCT(Handle, WindowHandle);
+DISTINCT(CursorHandle, Handle);
+DISTINCT(WindowClassHandle, rwcstring);
+DISTINCT(WindowHandle, Handle);
 #if OS_WINDOWS
   #define CS_VREDRAW          0x0001
   #define CS_HREDRAW          0x0002

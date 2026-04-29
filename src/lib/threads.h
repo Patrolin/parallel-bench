@@ -40,7 +40,7 @@ typedef DWORD PTHREAD_START_ROUTINE(rawptr param);
 typedef enum : DWORD {
   STACK_SIZE_PARAM_IS_A_RESERVATION = 0x00010000,
 } CreateThreadFlags;
-DISTINCT(Handle, ThreadHandle);
+DISTINCT(ThreadHandle, Handle);
 
   #pragma comment(lib, "Synchronization.lib")
 foreign void GetSystemInfo(SYSTEM_INFO *lpSystemInfo);
@@ -121,7 +121,7 @@ isize futex_wake(u32 *address, u32 count_to_wake) {
 #endif
 
 // shared data
-DISTINCT(u32, Thread);
+DISTINCT(Thread, u32);
 #define Thread(x) ((Thread)(x))
 STRUCT_ALIGNED(ThreadInfo, 32) {
   /* NOTE: barriers must be u32 on linux... */

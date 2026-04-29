@@ -605,12 +605,13 @@ typedef enum : uptr {
 
 // common
 /* NOTE: everything is a file on linux */
-DISTINCT(CINT, FileHandle);
-DISTINCT(FileHandle, Handle);
+DISTINCT(FileHandle, CINT);
+DISTINCT(Handle, FileHandle);
 #define INVALID_HANDLE (Handle)(-1)
-iptr close(FileHandle file) {
-  return syscall1(SYS_close, (uptr)file);
-}
 iptr write(FileHandle file, rcstring buffer, usize buffer_size) {
   return syscall3(SYS_write, (uptr)file, (uptr)buffer, buffer_size);
 }
+iptr close(FileHandle file) {
+  return syscall1(SYS_close, (uptr)file);
+}
+#define close_handle(handle) close(handle)

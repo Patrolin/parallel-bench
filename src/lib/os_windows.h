@@ -44,11 +44,12 @@ typedef enum : DWORD {
 #define ERROR_ALREADY_EXISTS 183
 
 // common
-DISTINCT(uptr, Handle);
-DISTINCT(Handle, FileHandle);
+DISTINCT(Handle, uptr);
+DISTINCT(FileHandle, Handle);
 #define INVALID_HANDLE (Handle)(-1)
-foreign bool CloseHandle(Handle handle);
 foreign bool WriteFile(FileHandle file, rcstring buffer, DWORD buffer_size, DWORD *bytes_written, rawptr overlapped);
+foreign bool CloseHandle(Handle handle);
+#define close_handle(handle) CloseHandle(handle)
 
 // windows utils
 foreign DWORD GetLastError();

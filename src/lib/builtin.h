@@ -21,7 +21,7 @@
 #define ASSERT2(condition, message) _Static_assert((condition), message)
 #define ASSERT(...)                 OVERLOAD3(__VA_ARGS__ __VA_OPT__(, ) ASSERT2, ASSERT1)(__VA_ARGS__)
 #define ASSERT_POWER_OF_TWO(a)      ASSERT(count_ones(uptr, a) == 1)
-#define DISTINCT(type, name) \
+#define DISTINCT(name, type) \
   typedef type name
 #define OPAQUE(name) typedef struct name name
 /* NOTE: helper for self-referential structs */

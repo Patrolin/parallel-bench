@@ -77,10 +77,10 @@ void write_entire_file_atomically(string file_path, string content) {
 #if OS_WINDOWS
   wstring wtmp_file_path = tprint_to_wcstring(tmp_file_path);
   FileHandle tmp_file = CreateFileW(wtmp_file_path.ptr, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-  assert(tmp_file != 0);
 #else
   assert(false);
 #endif
+  assert(tmp_file != INVALID_HANDLE);
   // write to the temp file
   i64 i = 0;
   u32 bytes_written;
@@ -95,11 +95,7 @@ void write_entire_file_atomically(string file_path, string content) {
 #endif
   }
   // close the temp file
-#if OS_WINDOWS
-  CloseHandle(tmp_file);
-#else
-  assert(false);
-#endif
+  close_handle(tmp_file);
   // atomically move the temp file to file_path
   move_path_atomically(tmp_file_path, file_path);
 }
