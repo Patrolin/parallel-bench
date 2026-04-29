@@ -1,3 +1,4 @@
+// IWYU pragma: private, include "os.h"
 #pragma once
 #include "builtin.h"
 

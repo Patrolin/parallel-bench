@@ -2,7 +2,6 @@
 #include "builtin.h"
 #include "fmt.h"
 #include "os.h"
-#include "os_windows.h"
 
 // types
 #if OS_WINDOWS
@@ -79,12 +78,8 @@ void move_path_atomically(string src_path, string dest_path) {
 #endif
 }
 void write_entire_file_atomically(string file_path, string content) {
-  // get temp file path
-  string TMP_SUFFIX = string(".tmp");
-  char tmp_path_buffer[file_path.size + TMP_SUFFIX.size];
-  str_concat(file_path, TMP_SUFFIX, tmp_path_buffer, sizeof(tmp_path_buffer));
-  string tmp_file_path = (string){tmp_path_buffer, sizeof(tmp_path_buffer)};
   // open the temp file
+  string tmp_file_path = tprintf("%.tmp", string, file_path);
 #if OS_WINDOWS
   wchar wtmp_file_path[tmp_file_path.size + 1];
   copy_string_to_cwstring(tmp_file_path, wtmp_file_path, sizeof(wtmp_file_path));

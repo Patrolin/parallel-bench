@@ -44,7 +44,9 @@ void fprint(FileHandle file, string str) {
 }
 
 // sprint_size(), sprint1()
-#define INVALID_SPRINT_SIZE(...)                     0; ASSERT(false, "Invalid argument count for sprint_size()")
+#define INVALID_SPRINT_SIZE(...) \
+  0;                             \
+  ASSERT(false, "Invalid argument count for sprint_size()")
 #define sprint_size(...)                             OVERLOAD11(__VA_ARGS__ __VA_OPT__(, ) sprint_size5, INVALID_SPRINT_SIZE, sprint_size4, INVALID_SPRINT_SIZE, sprint_size3, INVALID_SPRINT_SIZE, sprint_size2, INVALID_SPRINT_SIZE, sprint_size1, INVALID_SPRINT_SIZE, INVALID_SPRINT_SIZE)(__VA_ARGS__)
 #define sprint_size1(t1, v1)                         (CONCAT(sprint_size_, t1)(v1))
 #define sprint_size2(t1, v1, t2, v2)                 (CONCAT(sprint_size_, t1)(v1) + CONCAT(sprint_size_, t2)(v2))
@@ -53,16 +55,13 @@ void fprint(FileHandle file, string str) {
                                                       + CONCAT(sprint_size_, t3)(v3) + CONCAT(sprint_size_, t4)(v4))
 #define sprint_size5(t1, v1, t2, v2, t3, v3, t4, v4, t5, v5) (CONCAT(sprint_size_, t1)(v1) + CONCAT(sprint_size_, t2)(v2) \
                                                               + CONCAT(sprint_size_, t3)(v3) + CONCAT(sprint_size_, t4)(v4) + CONCAT(sprint_size_, t5)(v5))
-#define STACK_BUFFER(buffer, max_size, ptr_end) \
-  byte buffer[max_size];                        \
-  byte *ptr_end = &buffer[max_size]
 #define sprint1(t1, v1, ptr_end)        CONCAT(sprint_, t1)(v1, ptr_end)
 #define sprint_to_string(ptr_end, size) ((string){ptr_end - iptr(size), size})
 
 #define sprint_size_string(value) ((value).size)
 usize sprint_string(string str, byte *buffer_end) {
   byte *buffer = buffer_end - str.size;
-  for (usize i = 0; i < str.size; i++) {
+  for (isize i = isize(str.size - 1); i >= 0; i--) {
     buffer[i] = str.ptr[i];
   }
   return str.size;
@@ -166,7 +165,9 @@ usize sprint_isize(isize value, byte *buffer_end) {
 }
 
 // sprintf()
-#define INVALID_SPRINTF(...)                      0; ASSERT(false, "Invalid argument count for sprintf()")
+#define INVALID_SPRINTF(...) \
+  0;                         \
+  ASSERT(false, "Invalid argument count for sprintf()")
 #define sprintf(ptr_end, format, ...)             OVERLOAD9(__VA_ARGS__ __VA_OPT__(, ) sprintf4, INVALID_SPRINTF, sprintf3, INVALID_SPRINTF, sprintf2, INVALID_SPRINTF, sprintf1, INVALID_SPRINTF, INVALID_SPRINTF)(ptr_end, format, __VA_ARGS__)
 #define sprintf1(ptr_end, format, t1, v1)         sprintf1_impl(__COUNTER__, ptr_end, format, t1, v1)
 #define sprintf1_impl(C, ptr_end, format, t1, v1) ({                           \
@@ -327,7 +328,8 @@ usize sprint_isize(isize value, byte *buffer_end) {
 #define printf_impl(format, ...)                                       \
   do {                                                                 \
     usize printf_max_size = sprint_size(string, format, __VA_ARGS__);  \
-    STACK_BUFFER(printf_buffer, printf_max_size, printf_ptr_end);      \
+    byte printf_buffer[printf_max_size];                               \
+    byte *printf_ptr_end = &printf_buffer[printf_max_size];             \
     usize printf_size = sprintf(printf_ptr_end, format, __VA_ARGS__);  \
     string printf_msg = sprint_to_string(printf_ptr_end, printf_size); \
     print_string(printf_msg);                                          \
@@ -335,5 +337,14 @@ usize sprint_isize(isize value, byte *buffer_end) {
 #define printf_string(format_str, ...) printf_impl(format_str __VA_OPT__(, ) __VA_ARGS__)
 #define printf(format_rcstr, ...)      printf_string(string(format_rcstr) __VA_OPT__(, ) __VA_ARGS__)
 #define printfln(format_rcstr, ...)    printf(format_rcstr "\n" __VA_OPT__(, ) __VA_ARGS__)
+
+// tprintf()
+#define tprintf(format, ...)         tprintf_impl(__COUNTER__, string(format), __VA_ARGS__)
+#define tprintf_impl(C, format, ...) ({                                                                        \
+  usize VAR(tprint_buffer_size, C) = sprint_size(string, format, __VA_ARGS__);                                 \
+  char *VAR(tprint_buffer_end, C) = __builtin_alloca(VAR(tprint_buffer_size, C)) + VAR(tprint_buffer_size, C); \
+  usize VAR(tprint_size, C) = sprintf(VAR(tprint_buffer_end, C), format, __VA_ARGS__);                         \
+  (string){VAR(tprint_buffer_end, C) - VAR(tprint_size, C), VAR(tprint_size, C)};                              \
+})
 
 // TODO: maybe use __builtin_dump_struct() for structs?
