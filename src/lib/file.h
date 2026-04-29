@@ -83,11 +83,11 @@ void write_entire_file_atomically(string file_path, string content) {
   assert(tmp_file != INVALID_HANDLE);
   // write to the temp file
   i64 i = 0;
-  u32 bytes_written;
   for (;;) {
     i64 bytes_to_write = i64(content.size) - i;
     if (bytes_to_write <= 0) break;
 #if OS_WINDOWS
+    u32 bytes_written;
     assert(WriteFile(tmp_file, &content.ptr[i], u32(bytes_to_write), &bytes_written, 0));
     i += bytes_written;
 #else
@@ -100,20 +100,6 @@ void write_entire_file_atomically(string file_path, string content) {
   move_path_atomically(tmp_file_path, file_path);
 }
 
-/*
-move_path_atomically :: proc(src_path, dest_path: string) {
-        when ODIN_OS == .Windows {
-                result := MoveFileExW(&copy_string_to_cwstr(src_path)[0],
-&copy_string_to_cwstr(dest_path)[0], {.MOVEFILE_REPLACE_EXISTING})
-                fmt.assertf(bool(result), "Failed to move path: '%v' to '%v'",
-src_path, dest_path) } else when ODIN_OS == .Linux { cbuffer: [2 *
-WINDOWS_MAX_PATH]byte = --- csrc_path, cbuffer2 := copy_to_cstring(src_path,
-cbuffer[:]) cdest_path, _ := copy_to_cstring(dest_path, cbuffer2) err :=
-renameat2(AT_FDCWD, csrc_path, AT_FDCWD, cdest_path) fmt.assertf(err == 0,
-"Failed to move path: '%v' to '%v'", src_path, dest_path) } else { assert(false)
-        }
-}
-*/
 /* NOTE: We only support up to `wlen(dir) + 1 + wlen(relative_file_path) <
    MAX_PATH (259 utf16 chars + null terminator)`. \
       While we *can* give windows long paths as input, it has no way to return
@@ -233,8 +219,9 @@ read_file :: proc(file_path: string, allocator := context.temp_allocator) ->
                 for {
                         when ODIN_OS == .Windows {
                                 bytes_read: u32 = ---
-                                ReadFile(file, &buffer[0], len(buffer),
-&bytes_read, nil) } else when ODIN_OS == .Linux { bytes_read: int = ---
+                                ReadFile(file, &buffer[0], len(buffer), &bytes_read, nil)
+                        } else when ODIN_OS == .Linux {
+                                bytes_read: int = ---
                                 bytes_read = read(file, &buffer[0], len(buffer))
                         } else {
                                 assert(false)
@@ -247,69 +234,5 @@ read_file :: proc(file_path: string, allocator := context.temp_allocator) ->
                 close_file(file)
         }
         return
-}
-
-// write
-open_file_for_writing_and_truncate :: proc(file_path: string) -> (file:
-FileHandle, ok: bool) { when ODIN_OS == .Windows { file =
-CreateFileW(&copy_string_to_cwstr(file_path)[0], {.GENERIC_WRITE},
-{.FILE_SHARE_READ}, nil, .CreateOrOpenAndTruncate, {.FILE_ATTRIBUTE_NORMAL}) ok
-= file != FileHandle(INVALID_HANDLE) } else when ODIN_OS == .Linux { cbuffer:
-[WINDOWS_MAX_PATH]byte = --- cfile_path, _ := copy_to_cstring(file_path,
-cbuffer[:]) file = open(cfile_path, {.O_CREAT, .O_WRONLY, .O_TRUNC}) ok = file
-!= FileHandle(INVALID_HANDLE) } else { assert(false)
-        }
-        return
-}
-write_to_file :: proc(file: FileHandle, text: string) {
-        when ODIN_OS == .Windows {
-                assert(len(text) < int(max(u32)))
-                bytes_written: DWORD
-                WriteFile(file, raw_data(text), u32(len(text)), &bytes_written,
-nil) assert(int(bytes_written) == len(text)) } else when ODIN_OS == .Linux {
-                bytes_written := write(file, raw_data(text), len(text))
-                assert(bytes_written == len(text))
-        } else {
-                assert(false)
-        }
-}
-flush_file_data_and_metadata :: proc(file: FileHandle) {
-        when ODIN_OS == .Windows {
-                assert(bool(FlushFileBuffers(file)))
-        } else when ODIN_OS == .Linux {
-                assert(fsync(file) == 0)
-        } else {
-                assert(false)
-        }
-}
-flush_file_data :: proc(file: FileHandle) {
-        when ODIN_OS == .Windows {
-                assert(bool(FlushFileBuffers(file)))
-        } else when ODIN_OS == .Linux {
-                assert(fdatasync(file) == 0)
-        } else {
-                assert(false)
-        }
-}
-close_file :: proc(file: FileHandle) {
-        when ODIN_OS == .Windows {
-                CloseHandle(Handle(file))
-        } else when ODIN_OS == .Linux {
-                close(file)
-        } else {
-                assert(false)
-        }
-}
-
-// os agnostic
-write_file_atomically :: proc(file_path, text: string) {
-        // write to temp file
-        temp_file_path := fmt.tprintf("%v.tmp", file_path)
-        temp_file, ok := open_file_for_writing_and_truncate(temp_file_path)
-        fmt.assertf(ok, "Failed to open file: '%v'", file_path)
-        write_to_file(temp_file, text)
-        close_file(temp_file)
-        // move temp file to file_path
-        move_path_atomically(temp_file_path, file_path)
 }
 */
