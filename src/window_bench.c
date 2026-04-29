@@ -31,8 +31,7 @@ isize __stdcall window_proc(WindowHandle window, u32 type, usize wParam, isize l
 }
 
 int main() {
-  write_entire_file_atomically(string("foobar.txt"), string("hello world\n"));
-  /*WindowHandle window = window_open((WindowOptions){
+  WindowHandle window = window_open((WindowOptions){
     .className = L"window_class1",
     .title = L"Title",
     .callback = window_proc,
@@ -42,5 +41,5 @@ int main() {
   for (;;) {
     window_dispatch_messages_until_next_frame(&next_frame_ns, 60);
     // printfln("tick: % ms", i64, (next_frame_ns / Mega) % 1000);
-  }*/
+  }
 }

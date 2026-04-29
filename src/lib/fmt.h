@@ -329,7 +329,7 @@ usize sprint_isize(isize value, byte *buffer_end) {
   do {                                                                 \
     usize printf_max_size = sprint_size(string, format, __VA_ARGS__);  \
     byte printf_buffer[printf_max_size];                               \
-    byte *printf_ptr_end = &printf_buffer[printf_max_size];             \
+    byte *printf_ptr_end = &printf_buffer[printf_max_size];            \
     usize printf_size = sprintf(printf_ptr_end, format, __VA_ARGS__);  \
     string printf_msg = sprint_to_string(printf_ptr_end, printf_size); \
     print_string(printf_msg);                                          \
