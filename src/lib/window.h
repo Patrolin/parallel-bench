@@ -12,13 +12,13 @@ DISTINCT(WindowHandle, Handle);
   #define CS_HREDRAW          0x0002
   #define CS_DBLCLKS          0x0008
   #define CS_OWNDC            0x0020
-  #define WS_OVERLAPPED       0x00000000L
-  #define WS_VISIBLE          0x10000000L
-  #define WS_CAPTION          0x00C00000L
-  #define WS_SYSMENU          0x00080000L
-  #define WS_THICKFRAME       0x00040000L
-  #define WS_MINIMIZEBOX      0x00020000L
-  #define WS_MAXIMIZEBOX      0x00010000L
+  #define WS_OVERLAPPED       0x00000000
+  #define WS_VISIBLE          0x10000000
+  #define WS_CAPTION          0x00C00000
+  #define WS_SYSMENU          0x00080000
+  #define WS_THICKFRAME       0x00040000
+  #define WS_MINIMIZEBOX      0x00020000
+  #define WS_MAXIMIZEBOX      0x00010000
   #define WS_OVERLAPPEDWINDOW (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
   #define CW_USEDEFAULT       ((i32)0x80000000)
   #define WM_ACTIVATE         0x0006
