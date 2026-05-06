@@ -40,20 +40,6 @@ DISTINCT(MonitorHandle, Handle);
   #define SWP_NOOWNERZORDER        0x0200
   #define MONITOR_DEFAULTTONEAREST 0x00000002
   #define VK_F11                   0x7A
-STRUCT(WINDOWPLACEMENT) {
-  u32 length;
-  u32 flags;
-  u32 showCmd;
-  POINT ptMinPosition;
-  POINT ptMaxPosition;
-  RECT rcNormalPosition;
-};
-STRUCT(MONITORINFO) {
-  DWORD cbSize;
-  RECT rcMonitor;
-  RECT rcWork;
-  DWORD dwFlags;
-};
 
 typedef isize __stdcall (*WindowEventCallback)(WindowHandle window, u32 type, usize wParam, isize lParam);
 STRUCT(WNDCLASSW) {
@@ -76,6 +62,20 @@ STRUCT(MSG) {
   DWORD time;
   POINT pt;
 };
+STRUCT(WINDOWPLACEMENT) {
+  u32 length;
+  u32 flags;
+  u32 showCmd;
+  POINT ptMinPosition;
+  POINT ptMaxPosition;
+  RECT rcNormalPosition;
+};
+STRUCT(MONITORINFO) {
+  DWORD cbSize;
+  RECT rcMonitor;
+  RECT rcWork;
+  DWORD dwFlags;
+};
 #endif
 
 // syscalls
@@ -83,18 +83,18 @@ STRUCT(MSG) {
 foreign CursorHandle LoadCursorA(rawptr hInstance, wcstring lpCursorName);
 foreign WindowClassHandle RegisterClassW(WNDCLASSW *options);
 foreign WindowHandle CreateWindowExW(
-  DWORD dwExStyle,
-  rwcstring lpClassName,
-  rwcstring lpWindowName,
-  DWORD dwStyle,
+  DWORD exStyle,
+  rwcstring window_class_name,
+  rwcstring window_name,
+  DWORD style,
   i32 X,
   i32 Y,
-  i32 nWidth,
-  i32 nHeight,
-  WindowHandle hWndParent,
-  rawptr hMenu,
-  rawptr hInstance,
-  rawptr lpParam);
+  i32 width,
+  i32 height,
+  WindowHandle parent,
+  rawptr menu,
+  rawptr instance,
+  rawptr lParam);
 foreign isize DefWindowProcW(WindowHandle window, u32 type, usize wParam, isize lParam);
 foreign i32 GetMessageW(MSG *message, WindowHandle window, u32 messageFilterMin, u32 messageFilterMax);
 foreign BOOL PeekMessageW(MSG *message, WindowHandle window, u32 messageFilterMin, u32 messageFilterMax, u32 removeMsg);
