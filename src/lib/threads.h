@@ -142,7 +142,7 @@ STRUCT(Threads) {
   u64 *values;
   u32 logical_core_count;
 };
-global Threads global_threads;
+global Threads g_threads;
 
 u32 _get_logical_core_count() {
 #if RUN_SINGLE_THREADED
@@ -197,9 +197,9 @@ void wake_all_on_address(u32 *address) {
 }
 /* wait until all threads enter this barrier() */
 void barrier(Thread t) {
-  u32 threads_start = global_threads.thread_infos[t].threads_start;
-  u32 threads_end = global_threads.thread_infos[t].threads_end;
-  ThreadInfo *shared_data = &global_threads.thread_infos[threads_start];
+  u32 threads_start = g_threads.thread_infos[t].threads_start;
+  u32 threads_end = g_threads.thread_infos[t].threads_end;
+  ThreadInfo *shared_data = &g_threads.thread_infos[threads_start];
   u32 thread_count = threads_end - threads_start;
 
   u32 barrier = atomic_load(&shared_data->barrier);
@@ -218,8 +218,8 @@ void barrier(Thread t) {
 // single-core
 /* return true on the first thread that gets here, and false on the rest */
 bool single_core(Thread t) {
-  u32 threads_start = global_threads.thread_infos[t].threads_start;
-  ThreadInfo *shared_data = &global_threads.thread_infos[threads_start];
+  u32 threads_start = g_threads.thread_infos[t].threads_start;
+  ThreadInfo *shared_data = &g_threads.thread_infos[threads_start];
 
   bool is_first = atomic_fetch_add(&shared_data->is_first_counter, 1) == 0;
   if (expect_near(is_first)) {
@@ -230,9 +230,9 @@ bool single_core(Thread t) {
 /* scatter the value from the thread where single_core() returned true, defaulting to the first thread in the group */
 #define barrier_scatter(t, value) barrier_scatter_impl(t, (u64 *)(value));
 void barrier_scatter_impl(Thread t, u64 *value) {
-  Thread threads_start = global_threads.thread_infos[t].threads_start;
-  ThreadInfo *shared_data = &global_threads.thread_infos[threads_start];
-  u64 *shared_value = &global_threads.values[threads_start];
+  Thread threads_start = g_threads.thread_infos[t].threads_start;
+  ThreadInfo *shared_data = &g_threads.thread_infos[threads_start];
+  u64 *shared_value = &g_threads.values[threads_start];
   /* NOTE: we'd prefer if only the was_first_thread accessed shared_value here */
   if (expect_near(t == shared_data->was_first_thread)) {
     *shared_value = *value;
@@ -244,17 +244,17 @@ void barrier_scatter_impl(Thread t, u64 *value) {
 /* gather values from all threads in the current group into a all threads */
 #define barrier_gather(t, value) barrier_gather_impl(t, u64(value))
 u64 *barrier_gather_impl(Thread t, u64 value) {
-  global_threads.values[t] = value;
+  g_threads.values[t] = value;
   barrier(t); /* NOTE: make sure all threads have written their data */
-  return global_threads.values;
+  return g_threads.values;
 }
 
 // split/join threads
 bool barrier_split_threads(Thread t, u32 n) {
   // inline barrier() + modify threads
-  u32 threads_start = global_threads.thread_infos[t].threads_start;
-  u32 threads_end = global_threads.thread_infos[t].threads_end;
-  ThreadInfo *shared_data = &global_threads.thread_infos[threads_start];
+  u32 threads_start = g_threads.thread_infos[t].threads_start;
+  u32 threads_end = g_threads.thread_infos[t].threads_end;
+  ThreadInfo *shared_data = &g_threads.thread_infos[threads_start];
   u32 thread_count = threads_end - threads_start;
   Thread threads_split = threads_start + n;
   assert(n <= thread_count);
@@ -267,12 +267,12 @@ bool barrier_split_threads(Thread t, u32 n) {
   } else {
     // modify threads
     for (Thread i = threads_start; i < threads_end; i++) {
-      ThreadInfo *thread_data = &global_threads.thread_infos[i];
+      ThreadInfo *thread_data = &g_threads.thread_infos[i];
       /* NOTE: compiler unrolls this 4x */
       u32 *ptr = i < threads_split ? &thread_data->threads_end : &thread_data->threads_start;
       *ptr = threads_split;
     }
-    ThreadInfo *split_data = &global_threads.thread_infos[threads_split];
+    ThreadInfo *split_data = &g_threads.thread_infos[threads_split];
     split_data->was_first_thread = threads_split;
     /* NOTE: reset counters in case we have a non-power-of-two number of threads */
     shared_data->is_first_counter = 0;
@@ -286,7 +286,7 @@ bool barrier_split_threads(Thread t, u32 n) {
 void barrier_join_threads(Thread t, Thread threads_start, Thread threads_end) {
   // inline barrier() + modify threads
   assert(t >= threads_start && t < threads_end);
-  ThreadInfo *shared_data = &global_threads.thread_infos[threads_start];
+  ThreadInfo *shared_data = &g_threads.thread_infos[threads_start];
   u32 thread_count = threads_end - threads_start;
   /* NOTE: `thread_count > prev_thread_count`, so we need a separate barrier */
   u32 barrier = atomic_load(&shared_data->join_barrier);
@@ -297,7 +297,7 @@ void barrier_join_threads(Thread t, Thread threads_start, Thread threads_end) {
   } else {
     // modify threads
     for (Thread i = threads_start; i < threads_end; i++) {
-      ThreadInfo *thread_data = &global_threads.thread_infos[i];
+      ThreadInfo *thread_data = &g_threads.thread_infos[i];
       thread_data->threads_start = threads_start;
       thread_data->threads_end = threads_end;
     }
@@ -309,8 +309,8 @@ void barrier_join_threads(Thread t, Thread threads_start, Thread threads_end) {
   }
 }
 usize split_work(Thread t, usize total_work) {
-  u32 threads_start = global_threads.thread_infos[t].threads_start;
-  u32 threads_end = global_threads.thread_infos[t].threads_end;
+  u32 threads_start = g_threads.thread_infos[t].threads_start;
+  u32 threads_end = g_threads.thread_infos[t].threads_end;
   u32 thread_count = threads_end - threads_start;
   return total_work / thread_count + (t < (total_work % thread_count));
 }
@@ -320,18 +320,18 @@ forward_declare void thread_main(Thread t);
 CUINT thread_entry(rawptr param) {
   Thread t = Thread(uptr(param));
   thread_main(t);
-  barrier_join_threads(t, 0, global_threads.logical_core_count);
+  barrier_join_threads(t, 0, g_threads.logical_core_count);
   // exit_process(0);
   return 0;
 }
 void _start_threads(u32 thread_count) {
   ThreadInfo thread_infos[thread_count] = {};
   u64 values[thread_count];
-  global_threads.logical_core_count = thread_count;
-  global_threads.thread_infos = thread_infos;
-  global_threads.values = values;
+  g_threads.logical_core_count = thread_count;
+  g_threads.thread_infos = thread_infos;
+  g_threads.values = values;
   for (Thread t = 0; t < thread_count; t++) {
-    global_threads.thread_infos[t].threads_end = thread_count;
+    g_threads.thread_infos[t].threads_end = thread_count;
     if (expect_near(t > 0)) {
 #if OS_WINDOWS
       assert(CreateThread(0, 0, rawptr(thread_entry), (rawptr)uptr(t), STACK_SIZE_PARAM_IS_A_RESERVATION, 0) != 0);

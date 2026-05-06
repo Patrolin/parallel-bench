@@ -38,7 +38,7 @@ DISTINCT(MonitorHandle, Handle);
   #define SWP_NOZORDER             0x0004
   #define SWP_FRAMECHANGED         0x0020
   #define SWP_NOOWNERZORDER        0x0200
-  #define MONITOR_DEFAULTTOPRIMARY 0x00000001
+  #define MONITOR_DEFAULTTONEAREST 0x00000002
   #define VK_F11                   0x7A
 STRUCT(WINDOWPLACEMENT) {
   u32 length;
@@ -171,21 +171,21 @@ void window_dispatch_messages_until_next_frame(i64 *next_frame_ns_ptr, i64 fps) 
   while (window_dispatch_message(next_frame_ns));
 }
 #if OS_WINDOWS
-WINDOWPLACEMENT g_wpPrev = {sizeof(g_wpPrev)};
+WINDOWPLACEMENT g_prev_window_placement = {sizeof(g_prev_window_placement)};
 #endif
 void window_toggle_fullscreen(WindowHandle window) {
 #if OS_WINDOWS
   i32 dwStyle = GetWindowLongW(window, GWL_STYLE);
   if (dwStyle & WS_OVERLAPPEDWINDOW) {
     MONITORINFO mi = {sizeof(mi)};
-    if (GetWindowPlacement(window, &g_wpPrev) && GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &mi)) {
+    if (GetWindowPlacement(window, &g_prev_window_placement) && GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &mi)) {
       SetWindowLongW(window, GWL_STYLE, dwStyle & ~WS_OVERLAPPEDWINDOW);
       SetWindowPos(window, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     }
   } else {
     SetWindowLongW(window, GWL_STYLE, dwStyle | WS_OVERLAPPEDWINDOW);
-    SetWindowPlacement(window, &g_wpPrev);
-    SetWindowPos(window, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    SetWindowPlacement(window, &g_prev_window_placement);
+    // SetWindowPos(window, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
   }
 #else
   assert(false);
