@@ -39,6 +39,7 @@ DISTINCT(MonitorHandle, Handle);
   #define SWP_FRAMECHANGED         0x0020
   #define SWP_NOOWNERZORDER        0x0200
   #define MONITOR_DEFAULTTOPRIMARY 0x00000001
+  #define VK_F11                   0x7A
 STRUCT(WINDOWPLACEMENT) {
   u32 length;
   u32 flags;
@@ -169,7 +170,9 @@ void window_dispatch_messages_until_next_frame(i64 *next_frame_ns_ptr, i64 fps) 
   // dispatch messages until the next frame time
   while (window_dispatch_message(next_frame_ns));
 }
+#if OS_WINDOWS
 WINDOWPLACEMENT g_wpPrev = {sizeof(g_wpPrev)};
+#endif
 void window_toggle_fullscreen(WindowHandle window) {
 #if OS_WINDOWS
   i32 dwStyle = GetWindowLongW(window, GWL_STYLE);

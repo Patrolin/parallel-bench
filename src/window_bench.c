@@ -17,13 +17,16 @@ isize __stdcall window_proc(WindowHandle window, u32 type, usize wParam, isize l
     exit_process(0);
   } break;
   case WM_KEYDOWN: {
-    i64 dns = window_message_ns - prev_ns;
-    i64 round_to_ms = 50 * Mega;
-    dns = ((dns + (round_to_ms - 1)) / round_to_ms) * round_to_ms;
-    printfln("WM_KEYDOWN: % ms", i64, dns / Mega);
+    if (wParam == VK_F11) {
+      window_toggle_fullscreen(window);
+    } else {
+      i64 dns = window_message_ns - prev_ns;
+      i64 round_to_ms = 50 * Mega;
+      dns = ((dns + (round_to_ms - 1)) / round_to_ms) * round_to_ms;
+      printfln("WM_KEYDOWN: % ms", i64, dns / Mega);
+    }
   } break;
   case WM_KEYUP: {
-    window_toggle_fullscreen(window);
     // printfln("WM_KEYUP: %, %", usize, wParam, isize, lParam);
   } break;
   default: {
