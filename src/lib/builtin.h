@@ -21,9 +21,9 @@
 #define ASSERT2(condition, message) _Static_assert((condition), message)
 #define ASSERT(...)                 OVERLOAD3(__VA_ARGS__ __VA_OPT__(, ) ASSERT2, ASSERT1)(__VA_ARGS__)
 #define ASSERT_POWER_OF_TWO(a)      ASSERT(count_ones(uptr, a) == 1)
-#define DISTINCT(name, type) \
-  typedef type name
-#define OPAQUE(name) typedef struct name name
+#define TYPEDEF(name, type)         typedef type name
+#define DISTINCT(name, type)        typedef type name
+#define OPAQUE(name)                typedef struct name name
 /* NOTE: helper for self-referential structs */
 #define STRUCT(name)        \
   typedef struct name name; \
@@ -40,11 +40,11 @@
 
 // uptr, usize
 #define nil ((void *)0)
-typedef void *rawptr;
+TYPEDEF(rawptr, void *);
 #define rawptr(x) ((rawptr)(x))
-typedef uintptr_t uptr;
+TYPEDEF(uptr, uintptr_t);
 #define uptr(x) ((uptr)(x))
-typedef uintptr_t usize;
+TYPEDEF(usize, uintptr_t);
 #define usize(x) ((usize)(x))
 
 #define Kilo (1000)
@@ -55,7 +55,7 @@ enum : usize {
   Mebi = 1024 * Kibi,
   Gibi = 1024 * Mebi,
 };
-typedef char byte;
+TYPEDEF(byte, char);
 #define byte(x) ((byte)(x))
 ASSERT(sizeof(byte) == 1);
 
@@ -70,9 +70,9 @@ ASSERT(sizeof(byte) == 1);
 #define MIN_byte  byte(0)
 #define MAX_byte  byte(-1)
 
-typedef intptr_t iptr;
+TYPEDEF(iptr, intptr_t);
 #define iptr(x) ((iptr)(x))
-typedef intptr_t isize;
+TYPEDEF(isize, intptr_t);
 #define isize(x) ((isize)(x))
 
 #define MAX_iptr  iptr(MAX_uptr >> 1)
@@ -227,7 +227,7 @@ noreturn_ abort() {
 }
 
 // assert
-typedef struct string string;
+TYPEDEF(string, struct string);
 forward_declare void fprint(uptr file, string str);
 #if OS_WINDOWS
 typedef enum : uptr {
@@ -300,15 +300,15 @@ extern void *memset(void *ptr, int x, usize size) {
 #endif
 
 // types
-typedef unsigned __int128 u128;
+TYPEDEF(u128, unsigned __int128);
 #define u128(x) ((u128)x)
-typedef uint64_t u64;
+TYPEDEF(u64, uint64_t);
 #define u64(x) ((u64)(x))
-typedef uint32_t u32;
+TYPEDEF(u32, uint32_t);
 #define u32(x) ((u32)(x))
-typedef uint16_t u16;
+TYPEDEF(u16, uint16_t);
 #define u16(x) ((u16)(x))
-typedef uint8_t u8;
+TYPEDEF(u8, uint8_t);
 #define u8(x) ((u8)(x))
 
 #define MIN_u128 u128(0)
@@ -322,15 +322,15 @@ typedef uint8_t u8;
 #define MIN_u8   u8(0)
 #define MAX_u8   u8(-1)
 
-typedef __int128 i128;
+TYPEDEF(i128, __int128);
 #define i128(x) ((i128)(x))
-typedef int64_t i64;
+TYPEDEF(i64, int64_t);
 #define i64(x) ((i64)(x))
-typedef int32_t i32;
+TYPEDEF(i32, int32_t);
 #define i32(x) ((i32)(x))
-typedef int16_t i16;
+TYPEDEF(i16, int16_t);
 #define i16(x) ((i16)(x))
-typedef int8_t i8;
+TYPEDEF(i8, int8_t);
 #define i8(x) ((i8)(x))
 
 #define MAX_i64 i64(MAX_u64 >> 1)
@@ -342,33 +342,25 @@ typedef int8_t i8;
 #define MAX_i8  i8(MAX_u8 >> 1)
 #define MIN_i8  (~MAX_i8)
 
-// typedef signed char CICHAR;
-// typedef unsigned char CUCHAR;
-// typedef short CSHORT;
-// typedef unsigned short CUSHORT;
 /* NOTE: 16b or 32b depending on architecture */
-typedef int CINT;
+TYPEDEF(CINT, int);
 #define CINT(x) ((CINT)(x))
-typedef unsigned int CUINT;
+TYPEDEF(CUINT, unsigned int);
 #define CUINT(x) ((CUINT)(x))
-// typedef long CLONG;
-// typedef unsigned long CULONG;
-// typedef long long CLONGLONG;
-// typedef unsigned long long CULONGLONG;
 
-typedef double f64;
+TYPEDEF(f64, double);
 #define f64(x) ((f64)(x))
 ASSERT(sizeof(f64) == 8);
-typedef float f32;
+TYPEDEF(f32, float);
 #define f32(x) ((f32)(x))
 ASSERT(sizeof(f32) == 4);
 /* NOTE: If there isn't native support, f16 is implemented by repeatedly converting back and forth between f32... */
 #if ARCH_HAS_NATIVE_F16
-typedef _Float16 f16;
+TYPEDEF(f16, _Float16);
 ASSERT(sizeof(f16) == 2);
 #endif
 #if ARCH_HAS_NATIVE_BF16
-typedef __bf16 bf16;
+TYPEDEF(bf16, __bf16);
 ASSERT(sizeof(bf16) == 2);
 #endif
 

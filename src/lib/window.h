@@ -7,29 +7,52 @@
 DISTINCT(CursorHandle, Handle);
 DISTINCT(WindowClassHandle, rwcstring);
 DISTINCT(WindowHandle, Handle);
+DISTINCT(MonitorHandle, Handle);
 #if OS_WINDOWS
-  #define CS_VREDRAW          0x0001
-  #define CS_HREDRAW          0x0002
-  #define CS_DBLCLKS          0x0008
-  #define CS_OWNDC            0x0020
-  #define WS_OVERLAPPED       0x00000000
-  #define WS_VISIBLE          0x10000000
-  #define WS_CAPTION          0x00C00000
-  #define WS_SYSMENU          0x00080000
-  #define WS_THICKFRAME       0x00040000
-  #define WS_MINIMIZEBOX      0x00020000
-  #define WS_MAXIMIZEBOX      0x00010000
-  #define WS_OVERLAPPEDWINDOW (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
-  #define CW_USEDEFAULT       ((i32)0x80000000)
-  #define WM_ACTIVATE         0x0006
-  #define WM_CLOSE            0x0010
-  #define WM_INPUT            0x00FF
-  #define WM_KEYDOWN          0x0100
-  #define WM_KEYUP            0x0101
-  #define QS_ALLEVENTS        0x1cbf
-  #define WA_INACTIVE         0
-  #define WA_ACTIVE           1
-  #define WA_CLICKACTIVE      2
+  #define CS_VREDRAW               0x0001
+  #define CS_HREDRAW               0x0002
+  #define CS_DBLCLKS               0x0008
+  #define CS_OWNDC                 0x0020
+  #define WS_OVERLAPPED            0x00000000
+  #define WS_VISIBLE               0x10000000
+  #define WS_CAPTION               0x00C00000
+  #define WS_SYSMENU               0x00080000
+  #define WS_THICKFRAME            0x00040000
+  #define WS_MINIMIZEBOX           0x00020000
+  #define WS_MAXIMIZEBOX           0x00010000
+  #define WS_OVERLAPPEDWINDOW      (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
+  #define CW_USEDEFAULT            ((i32)0x80000000)
+  #define WM_ACTIVATE              0x0006
+  #define WM_CLOSE                 0x0010
+  #define WM_INPUT                 0x00FF
+  #define WM_KEYDOWN               0x0100
+  #define WM_KEYUP                 0x0101
+  #define QS_ALLEVENTS             0x1cbf
+  #define WA_INACTIVE              0
+  #define WA_ACTIVE                1
+  #define WA_CLICKACTIVE           2
+  #define GWL_STYLE                (-16)
+  #define HWND_TOP                 0
+  #define SWP_NOSIZE               0x0001
+  #define SWP_NOMOVE               0x0002
+  #define SWP_NOZORDER             0x0004
+  #define SWP_FRAMECHANGED         0x0020
+  #define SWP_NOOWNERZORDER        0x0200
+  #define MONITOR_DEFAULTTOPRIMARY 0x00000001
+STRUCT(WINDOWPLACEMENT) {
+  u32 length;
+  u32 flags;
+  u32 showCmd;
+  POINT ptMinPosition;
+  POINT ptMaxPosition;
+  RECT rcNormalPosition;
+};
+STRUCT(MONITORINFO) {
+  DWORD cbSize;
+  RECT rcMonitor;
+  RECT rcWork;
+  DWORD dwFlags;
+};
 
 typedef isize __stdcall (*WindowEventCallback)(WindowHandle window, u32 type, usize wParam, isize lParam);
 STRUCT(WNDCLASSW) {
@@ -43,10 +66,6 @@ STRUCT(WNDCLASSW) {
   rawptr hbrBackground;
   rwcstring lpszMenuName;
   rwcstring lpszClassName;
-};
-STRUCT(POINT) {
-  i32 x;
-  i32 y;
 };
 STRUCT(MSG) {
   WindowHandle window;
@@ -81,6 +100,20 @@ foreign BOOL PeekMessageW(MSG *message, WindowHandle window, u32 messageFilterMi
 foreign DWORD MsgWaitForMultipleObjects(DWORD handles_count, readonly Handle handles, BOOL wait_for_all, DWORD ms, DWORD wake_mask);
 foreign BOOL TranslateMessage(readonly MSG *message);
 foreign isize DispatchMessageW(readonly MSG *message);
+foreign MonitorHandle MonitorFromWindow(WindowHandle window, u32 flags);
+foreign BOOL GetMonitorInfoW(MonitorHandle monitor, MONITORINFO *lpmi);
+foreign i32 GetWindowLongW(WindowHandle window, CINT index);
+foreign i32 SetWindowLongW(WindowHandle window, CINT index, i32 value);
+foreign BOOL GetWindowPlacement(WindowHandle window, WINDOWPLACEMENT *placement);
+foreign BOOL SetWindowPlacement(WindowHandle window, readonly WINDOWPLACEMENT *placement);
+foreign BOOL SetWindowPos(
+  WindowHandle window,
+  WindowHandle window_after,
+  CINT x,
+  CINT y,
+  CINT width,
+  CINT height,
+  u32 flags);
 #endif
 
 STRUCT(WindowOptions) {
@@ -135,4 +168,23 @@ void window_dispatch_messages_until_next_frame(i64 *next_frame_ns_ptr, i64 fps) 
   *next_frame_ns_ptr = next_frame_ns;
   // dispatch messages until the next frame time
   while (window_dispatch_message(next_frame_ns));
+}
+WINDOWPLACEMENT g_wpPrev = {sizeof(g_wpPrev)};
+void window_toggle_fullscreen(WindowHandle window) {
+#if OS_WINDOWS
+  i32 dwStyle = GetWindowLongW(window, GWL_STYLE);
+  if (dwStyle & WS_OVERLAPPEDWINDOW) {
+    MONITORINFO mi = {sizeof(mi)};
+    if (GetWindowPlacement(window, &g_wpPrev) && GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &mi)) {
+      SetWindowLongW(window, GWL_STYLE, dwStyle & ~WS_OVERLAPPEDWINDOW);
+      SetWindowPos(window, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top, mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top, SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+  } else {
+    SetWindowLongW(window, GWL_STYLE, dwStyle | WS_OVERLAPPEDWINDOW);
+    SetWindowPlacement(window, &g_wpPrev);
+    SetWindowPos(window, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+  }
+#else
+  assert(false);
+#endif
 }

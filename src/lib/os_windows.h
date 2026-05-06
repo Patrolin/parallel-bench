@@ -3,12 +3,12 @@
 #include "builtin.h"
 
 // types
-typedef i32 BOOL;
-typedef u64 QWORD;
-typedef u32 DWORD;
-typedef u16 WORD;
+TYPEDEF(BOOL, i32);
+TYPEDEF(QWORD, u64);
+TYPEDEF(DWORD, u32);
+TYPEDEF(WORD, u16);
 
-typedef uint16_t wchar;
+TYPEDEF(wchar, u16);
 #define wcstring  wchar *
 #define rwcstring readonly wchar *
 STRUCT(wstring) {
@@ -30,6 +30,16 @@ STRUCT(SECURITY_ATTRIBUTES) {
   DWORD nLength;
   rawptr lpSecurityDescriptor;
   BOOL bInheritHandle;
+};
+STRUCT(POINT) {
+  i32 x;
+  i32 y;
+};
+STRUCT(RECT) {
+  i32 left;
+  i32 top;
+  i32 right;
+  i32 bottom;
 };
 
 #define TIME_INFINITE (DWORD)(-1)

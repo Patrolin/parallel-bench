@@ -23,6 +23,7 @@ isize __stdcall window_proc(WindowHandle window, u32 type, usize wParam, isize l
     printfln("WM_KEYDOWN: % ms", i64, dns / Mega);
   } break;
   case WM_KEYUP: {
+    window_toggle_fullscreen(window);
     // printfln("WM_KEYUP: %, %", usize, wParam, isize, lParam);
   } break;
   default: {

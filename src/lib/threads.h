@@ -53,8 +53,8 @@ foreign ThreadHandle CreateThread(readonly SECURITY_ATTRIBUTES *security,
 foreign void WaitOnAddress(volatile rawptr address, readonly rawptr while_value, usize address_size, DWORD timeout);
 foreign void WakeByAddressAll(readonly rawptr address);
 #elif OS_LINUX
-typedef CINT pid_t;
-typedef u64 rlim_t;
+TYPEDEF(pid_t, CINT);
+TYPEDEF(rlim_t, u64);
 typedef enum : CUINT {
   RLIMIT_STACK = 3,
 } ResourceType;
@@ -105,7 +105,7 @@ typedef enum : CINT {
   FUTEX_WAIT = 0,
   FUTEX_WAKE = 1,
 } FutexOp;
-typedef isize time_t;
+TYPEDEF(time_t, isize);
 STRUCT(timespec) {
   time_t t_sec;
   time_t t_nsec;
