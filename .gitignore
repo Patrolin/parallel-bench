@@ -3,3 +3,4 @@
 *.pdb
 *.rdi
 tmp.c
+tmp.cpp
