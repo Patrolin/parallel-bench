@@ -47,7 +47,7 @@ typedef enum : DWORD {
   WAIT_OBJECT_0 = 0,
   WAIT_ABANDONED = 0x80,
   WAIT_TIMEOUT = 0x102,
-  WAIT_FAILED = -1,
+  WAIT_FAILED = (DWORD)(-1),
 } WaitResult;
 
 #define ERROR_PATH_NOT_FOUND 3

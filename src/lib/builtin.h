@@ -231,9 +231,9 @@ TYPEDEF(string, struct string);
 forward_declare void fprint(uptr file, string str);
 #if OS_WINDOWS
 typedef enum : uptr {
-  STDIN = -10,
-  STDOUT = -11,
-  STDERR = -12,
+  STDIN = uptr(-10),
+  STDOUT = uptr(-11),
+  STDERR = uptr(-12),
 } ConsoleHandleEnum;
 #elif OS_LINUX
 typedef enum : uptr {

@@ -1,5 +1,4 @@
 #include "lib/builtin.h"
-#include "lib/file.h"
 #include "lib/fmt.h"
 #include "lib/time.h"
 #include "lib/window.h"
