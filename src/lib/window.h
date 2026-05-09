@@ -28,6 +28,7 @@ DISTINCT(MonitorHandle, Handle);
   #define WM_KEYDOWN               0x0100
   #define WM_KEYUP                 0x0101
   #define QS_ALLEVENTS             0x1cbf
+  #define PM_REMOVE                0x1
   #define WA_INACTIVE              0
   #define WA_ACTIVE                1
   #define WA_CLICKACTIVE           2
@@ -150,7 +151,7 @@ bool window_dispatch_message(i64 until_ns) {
   MSG message;
   DWORD wait_ms = (DWORD)((until_ns - time_ns) / Mega);
   if (MsgWaitForMultipleObjects(0, 0, false, wait_ms, QS_ALLEVENTS) == WAIT_OBJECT_0) {
-    while (PeekMessageW(&message, 0, 0, 0, 0x1)) {
+    while (PeekMessageW(&message, 0, 0, 0, PM_REMOVE)) {
       TranslateMessage(&message);
       DispatchMessageW(&message);
     }
