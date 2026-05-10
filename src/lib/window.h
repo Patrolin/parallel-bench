@@ -22,6 +22,7 @@ DISTINCT(MonitorHandle, Handle);
   #define WS_MAXIMIZEBOX           0x00010000
   #define WS_OVERLAPPEDWINDOW      (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)
   #define CW_USEDEFAULT            ((i32)0x80000000)
+  #define WM_SIZE                  0x0005
   #define WM_ACTIVATE              0x0006
   #define WM_CLOSE                 0x0010
   #define WM_INPUT                 0x00FF
@@ -122,6 +123,8 @@ STRUCT(WindowOptions) {
   rwcstring className;
   rwcstring title;
   WindowEventCallback callback;
+  i32 width;
+  i32 height;
 };
 WindowHandle window_open(WindowOptions options) {
 #if OS_WINDOWS
@@ -135,7 +138,9 @@ WindowHandle window_open(WindowOptions options) {
   WindowClassHandle window_class = RegisterClassW(&window_class_options);
   assert(window_class != 0);
   DWORD window_style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
-  WindowHandle window = CreateWindowExW(0, window_class, options.title, window_style, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, 0, 0);
+  i32 width = options.width != 0 ? options.width : CW_USEDEFAULT;
+  i32 height = options.height != 0 ? options.height : CW_USEDEFAULT;
+  WindowHandle window = CreateWindowExW(0, window_class, options.title, window_style, CW_USEDEFAULT, CW_USEDEFAULT, width, height, 0, 0, 0, 0);
   assert(window != 0);
   return window;
 #else
