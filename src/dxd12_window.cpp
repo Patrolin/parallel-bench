@@ -1,5 +1,4 @@
-// Minimal DX12 blit-from-CPU example using FLIP_DISCARD swap chain.
-// Build: d3d12.lib dxgi.lib dxguid.lib
+// clang src/dxd12_window.cpp -o dxd12_window.exe
 #define UNICODE
 #define WIN32_LEAN_AND_MEAN
 #include <assert.h>
@@ -10,11 +9,9 @@
 #include <winuser.h>
 #include <wrl.h>
 #include <stdint.h>
-
-#define VSYNC 1
-
 using Microsoft::WRL::ComPtr;
 
+#define VSYNC 1
 static const UINT Width = 1280;
 static const UINT Height = 720;
 static const UINT BufferCount = 2;
@@ -94,14 +91,14 @@ int main() {
   HANDLE latencyHandle = swapChain->GetFrameLatencyWaitableObject();
   assert(latencyHandle != INVALID_HANDLE_VALUE);
 
-  // back buffers
+  // get back buffers
   UINT frameIndex = swapChain->GetCurrentBackBufferIndex();
   ComPtr<ID3D12Resource> backBuffers[BufferCount];
   for (UINT i = 0; i < BufferCount; ++i) {
     swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffers[i]));
   }
 
-  // uploadBuffer
+  // create uploadBuffer
   D3D12_RESOURCE_DESC gpuTextureDesc = {
     .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
     .Width = Width,
@@ -146,7 +143,7 @@ int main() {
   uint8_t *uploadBuffer_cpu = NULL;
   uploadBuffer_gpu->Map(0, NULL, (void **)&uploadBuffer_cpu);
 
-  // command list
+  // create command list
   ComPtr<ID3D12CommandAllocator> commandAllocator;
   device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
 
@@ -159,18 +156,17 @@ int main() {
     IID_PPV_ARGS(&commandList));
   commandList->Close();
 
-  // CPU framebuffer (ABGR)
   uint32_t *framebuffer = new uint32_t[Width * Height];
   uint32_t t = 50;
   for (;;) {
-    // inputs
+    // handle inputs
     MSG message;
     while (PeekMessageW(&message, 0, 0, 0, PM_REMOVE)) {
       TranslateMessage(&message);
       DispatchMessageW(&message);
     }
 
-    // wait until render queue it empty
+    // wait until render queue is empty
     WaitForSingleObject(latencyHandle, INFINITE);
 #if 1
     // render to framebuffer
