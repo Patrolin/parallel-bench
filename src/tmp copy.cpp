@@ -167,6 +167,7 @@ int main() {
       DispatchMessageW(&message);
     }
 
+    // wait until render queue it empty
     WaitForSingleObject(latencyHandle, INFINITE);
 #if 1
     // render to framebuffer
