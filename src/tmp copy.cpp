@@ -14,7 +14,7 @@ using Microsoft::WRL::ComPtr;
 
 static const UINT Width = 1280;
 static const UINT Height = 720;
-static const UINT FrameCount = 2;
+static const UINT BufferCount = 2;
 static const DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 #pragma comment(lib, "Kernel32.lib")
@@ -72,7 +72,7 @@ int main() {
 
   // Swap chain (FLIP_DISCARD)
   DXGI_SWAP_CHAIN_DESC1 scDesc = {};
-  scDesc.BufferCount = FrameCount;
+  scDesc.BufferCount = BufferCount;
   scDesc.Width = Width;
   scDesc.Height = Height;
   scDesc.Format = Format;
@@ -95,8 +95,8 @@ int main() {
 
   // Back buffers
   UINT frameIndex = swapChain->GetCurrentBackBufferIndex();
-  ComPtr<ID3D12Resource> backBuffers[FrameCount];
-  for (UINT i = 0; i < FrameCount; ++i) {
+  ComPtr<ID3D12Resource> backBuffers[BufferCount];
+  for (UINT i = 0; i < BufferCount; ++i) {
     swapChain->GetBuffer(
       i,
       IID_PPV_ARGS(&backBuffers[i]));
