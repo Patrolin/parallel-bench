@@ -219,6 +219,7 @@ int main() {
     queue->ExecuteCommandLists(1, lists);
 
     // present
+    // TODO: cap framerate to slightly below monitor and disable VSYNC
     if (VSYNC) {
       swapChain->Present(1, 0);
     } else {
