@@ -1,6 +1,5 @@
 // Minimal DX12 blit-from-CPU example using FLIP_DISCARD swap chain.
 // Build: d3d12.lib dxgi.lib dxguid.lib
-#include <intsafe.h>
 #define UNICODE
 #define WIN32_LEAN_AND_MEAN
 #include <assert.h>
@@ -47,7 +46,7 @@ int main() {
   long long window_class = RegisterClassW(&window_class_options);
   assert(window_class != 0);
   DWORD window_style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
-  HWND window = CreateWindowExW(0, (LPCWSTR)window_class, L"Title", window_style, CW_USEDEFAULT, CW_USEDEFAULT, Width + 16, Height + 39, 0, 0, 0, 0);
+  HWND window = CreateWindowExW(0, (LPCWSTR)window_class, L"Title", window_style, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, 0, 0);
   printf("window: %llx\n", (unsigned long long)window);
   assert(window != 0);
   ShowWindow(window, SW_NORMAL);
@@ -87,8 +86,10 @@ int main() {
   ComPtr<IDXGISwapChain3> swapChain;
   swapChain1.As(&swapChain);
   assert(swapChain.Get() == swapChain1.Get());
-  swapChain->SetMaximumFrameLatency(1);
+  HRESULT hr = swapChain->SetMaximumFrameLatency(1);
+  assert(SUCCEEDED(hr));
   HANDLE latencyHandle = swapChain->GetFrameLatencyWaitableObject();
+  assert(latencyHandle != INVALID_HANDLE_VALUE);
 
   // back buffers
   UINT frameIndex = swapChain->GetCurrentBackBufferIndex();
@@ -106,7 +107,7 @@ int main() {
     .MipLevels = 1,
     .Format = Format,
     .SampleDesc = {.Count = 1},
-    .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+    .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
   };
   UINT64 uploadSize = 0;
   D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
@@ -166,8 +167,9 @@ int main() {
       DispatchMessageW(&message);
     }
 
-    // render
-    printf("t: %u", t);
+    WaitForSingleObject(latencyHandle, INFINITE);
+#if 1
+    // render to framebuffer
     for (UINT y = 0; y < Height; ++y) {
       for (UINT x = 0; x < Width; ++x) {
         uint32_t r = (uint8_t)(x + t);
@@ -176,18 +178,26 @@ int main() {
         framebuffer[y * Width + x] = 0xFF000000 | (b << 16) | (g << 8) | (r);
       }
     }
-    t++;
-
-    WaitForSingleObject(latencyHandle, INFINITE);
-
     // copy framebuffer to uploadHeap
-    printf("rowPitch: %u\n", footprint.Footprint.RowPitch);
     for (UINT y = 0; y < Height; ++y) {
       memcpy(
         uploadBuffer_cpu + y * footprint.Footprint.RowPitch,
         framebuffer + y * Width,
         Width * 4);
     }
+#else
+    // render to uploadHeap
+    for (UINT y = 0; y < Height; ++y) {
+      for (UINT x = 0; x < Width; ++x) {
+        uint32_t r = (uint8_t)(x + t);
+        uint32_t g = (uint8_t)y;
+        uint32_t b = 0;
+        uint32_t *dest = (uint32_t *)&uploadBuffer_cpu[y * footprint.Footprint.RowPitch + x * 4];
+        *dest = 0xFF000000 | (b << 16) | (g << 8) | (r);
+      }
+    }
+#endif
+    t++;
 
     // copy uploadBuffer to gpuTexture
     commandAllocator->Reset();
