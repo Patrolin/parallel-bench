@@ -11,6 +11,8 @@
 #include <wrl.h>
 #include <stdint.h>
 
+#define VSYNC 1
+
 using Microsoft::WRL::ComPtr;
 
 static const UINT Width = 1280;
@@ -73,6 +75,7 @@ int main() {
     .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
     .BufferCount = BufferCount,
     .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+    /* NOTE: allow tearing for windows overlays */
     .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING | DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT};
   ComPtr<IDXGISwapChain1> swapChain1;
   factory->CreateSwapChainForHwnd(
@@ -198,7 +201,7 @@ int main() {
       }
     }
 #endif
-    t++;
+    t += 5;
 
     // copy uploadBuffer to gpuTexture
     commandAllocator->Reset();
@@ -219,7 +222,11 @@ int main() {
     queue->ExecuteCommandLists(1, lists);
 
     // present
-    swapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+    if (VSYNC) {
+      swapChain->Present(1, 0);
+    } else {
+      swapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+    }
     frameIndex = frameIndex ^ 1;
   }
   return 0;
