@@ -124,20 +124,21 @@ int main() {
   printf("uploadSize: %llu\n", uploadSize);
 
   D3D12_HEAP_PROPERTIES uploadHeap = {.Type = D3D12_HEAP_TYPE_UPLOAD};
-  D3D12_RESOURCE_DESC uploadDesc = {};
-  uploadDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-  uploadDesc.Width = uploadSize;
-  uploadDesc.Height = 1;
-  uploadDesc.DepthOrArraySize = 1;
-  uploadDesc.MipLevels = 1;
-  uploadDesc.SampleDesc.Count = 1;
-  uploadDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+  D3D12_RESOURCE_DESC uploadBufferDesc = {
+    .Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+    .Width = uploadSize,
+    .Height = 1,
+    .DepthOrArraySize = 1,
+    .MipLevels = 1,
+    .SampleDesc = {.Count = 1},
+    .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+  };
 
   ComPtr<ID3D12Resource> uploadBuffer_gpu;
   device->CreateCommittedResource(
     &uploadHeap,
     D3D12_HEAP_FLAG_NONE,
-    &uploadDesc,
+    &uploadBufferDesc,
     D3D12_RESOURCE_STATE_GENERIC_READ,
     NULL,
     IID_PPV_ARGS(&uploadBuffer_gpu));
