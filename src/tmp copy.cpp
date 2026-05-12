@@ -1,3 +1,5 @@
+// Minimal DX12 blit-from-CPU example using FLIP_DISCARD swap chain.
+// Build: d3d12.lib dxgi.lib dxguid.lib
 #include <intsafe.h>
 #define UNICODE
 #define WIN32_LEAN_AND_MEAN
@@ -70,16 +72,16 @@ int main() {
     &queueDesc,
     IID_PPV_ARGS(&queue));
 
-  // Swap chain (FLIP_DISCARD)
-  DXGI_SWAP_CHAIN_DESC1 scDesc = {};
-  scDesc.BufferCount = BufferCount;
-  scDesc.Width = Width;
-  scDesc.Height = Height;
-  scDesc.Format = Format;
-  scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-  scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-  scDesc.SampleDesc.Count = 1;
-
+  // Swap chain (DXGI_SWAP_EFFECT_FLIP_DISCARD)
+  DXGI_SWAP_CHAIN_DESC1 scDesc = {
+    .Width = Width,
+    .Height = Height,
+    .Format = Format,
+    .SampleDesc = {.Count = 1},
+    .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+    .BufferCount = BufferCount,
+    .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+    .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING | DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT};
   ComPtr<IDXGISwapChain1> swapChain1;
   factory->CreateSwapChainForHwnd(
     queue.Get(),
@@ -92,6 +94,8 @@ int main() {
   ComPtr<IDXGISwapChain3> swapChain;
   swapChain1.As(&swapChain);
   assert(swapChain.Get() == swapChain1.Get());
+  swapChain->SetMaximumFrameLatency(1);
+  HANDLE latencyHandle = swapChain->GetFrameLatencyWaitableObject();
 
   // Back buffers
   UINT frameIndex = swapChain->GetCurrentBackBufferIndex();
@@ -215,6 +219,8 @@ int main() {
     }
     t++;
 
+    WaitForSingleObject(latencyHandle, INFINITE);
+
     // copy framebuffer to uploadHeap
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
     device->GetCopyableFootprints(
@@ -259,7 +265,7 @@ int main() {
     // Execute
     ID3D12CommandList *lists[] = {commandList.Get()};
     queue->ExecuteCommandLists(1, lists);
-    swapChain->Present(1, 0);
+    swapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
     waitForGPU();
 
     frameIndex = frameIndex ^ 1;
