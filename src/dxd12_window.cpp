@@ -15,6 +15,7 @@ using Microsoft::WRL::ComPtr;
 static const UINT Width = 1280;
 static const UINT Height = 720;
 static const UINT BufferCount = 2;
+/* NOTE: must be either `DXGI_FORMAT_R8G8B8A8_UNORM` or `DXGI_FORMAT_B8G8R8A8_UNORM` */
 static const DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 #pragma comment(lib, "Kernel32.lib")
