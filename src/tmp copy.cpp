@@ -52,27 +52,20 @@ int main() {
   assert(window != 0);
   ShowWindow(window, SW_NORMAL);
 
-  // Create DXGI factory
+  // create DXGI factory
   ComPtr<IDXGIFactory4> factory;
   CreateDXGIFactory1(IID_PPV_ARGS(&factory));
 
-  // Create device
+  // create device
   ComPtr<ID3D12Device> device;
-  D3D12CreateDevice(
-    nullptr,
-    D3D_FEATURE_LEVEL_11_0,
-    IID_PPV_ARGS(&device));
+  D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
 
-  // Command queue
-  D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-  queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-
+  // create command queue
+  D3D12_COMMAND_QUEUE_DESC queueDesc = {.Type = D3D12_COMMAND_LIST_TYPE_DIRECT};
   ComPtr<ID3D12CommandQueue> queue;
-  device->CreateCommandQueue(
-    &queueDesc,
-    IID_PPV_ARGS(&queue));
+  device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&queue));
 
-  // Swap chain (DXGI_SWAP_EFFECT_FLIP_DISCARD)
+  // create swap chain (DXGI_SWAP_EFFECT_FLIP_DISCARD)
   DXGI_SWAP_CHAIN_DESC1 scDesc = {
     .Width = Width,
     .Height = Height,
@@ -87,8 +80,8 @@ int main() {
     queue.Get(),
     window,
     &scDesc,
-    nullptr,
-    nullptr,
+    NULL,
+    NULL,
     &swapChain1);
 
   ComPtr<IDXGISwapChain3> swapChain;
@@ -97,17 +90,14 @@ int main() {
   swapChain->SetMaximumFrameLatency(1);
   HANDLE latencyHandle = swapChain->GetFrameLatencyWaitableObject();
 
-  // Back buffers
+  // back buffers
   UINT frameIndex = swapChain->GetCurrentBackBufferIndex();
   ComPtr<ID3D12Resource> backBuffers[BufferCount];
   for (UINT i = 0; i < BufferCount; ++i) {
-    swapChain->GetBuffer(
-      i,
-      IID_PPV_ARGS(&backBuffers[i]));
+    swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffers[i]));
   }
 
-  // create GPU texture
-  D3D12_HEAP_PROPERTIES defaultHeap = {.Type = D3D12_HEAP_TYPE_DEFAULT};
+  // uploadBuffer
   D3D12_RESOURCE_DESC gpuTextureDesc = {
     .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
     .Width = Width,
@@ -116,27 +106,18 @@ int main() {
     .MipLevels = 1,
     .Format = Format,
     .SampleDesc = {.Count = 1},
-    .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+    .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
   };
-  ComPtr<ID3D12Resource> gpuTexture;
-  device->CreateCommittedResource(
-    &defaultHeap,
-    D3D12_HEAP_FLAG_NONE,
-    &gpuTextureDesc,
-    D3D12_RESOURCE_STATE_COPY_DEST,
-    nullptr,
-    IID_PPV_ARGS(&gpuTexture));
-
-  // Upload buffer
   UINT64 uploadSize = 0;
+  D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
   device->GetCopyableFootprints(
     &gpuTextureDesc,
     0,
     1,
     0,
-    nullptr,
-    nullptr,
-    nullptr,
+    &footprint,
+    NULL,
+    NULL,
     &uploadSize);
   printf("uploadSize: %llu\n", uploadSize);
 
@@ -156,45 +137,23 @@ int main() {
     D3D12_HEAP_FLAG_NONE,
     &uploadDesc,
     D3D12_RESOURCE_STATE_GENERIC_READ,
-    nullptr,
+    NULL,
     IID_PPV_ARGS(&uploadBuffer_gpu));
-  uint8_t *uploadBuffer_cpu = nullptr;
-  uploadBuffer_gpu->Map(0, nullptr, (void **)&uploadBuffer_cpu);
+  uint8_t *uploadBuffer_cpu = NULL;
+  uploadBuffer_gpu->Map(0, NULL, (void **)&uploadBuffer_cpu);
 
-  // Command allocator/list
+  // command list
   ComPtr<ID3D12CommandAllocator> commandAllocator;
-  device->CreateCommandAllocator(
-    D3D12_COMMAND_LIST_TYPE_DIRECT,
-    IID_PPV_ARGS(&commandAllocator));
+  device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
 
   ComPtr<ID3D12GraphicsCommandList> commandList;
   device->CreateCommandList(
     0,
     D3D12_COMMAND_LIST_TYPE_DIRECT,
     commandAllocator.Get(),
-    nullptr,
+    NULL,
     IID_PPV_ARGS(&commandList));
   commandList->Close();
-
-  // wait for GPU
-  ComPtr<ID3D12Fence> fence;
-  HRESULT hr = device->CreateFence(
-    0,
-    D3D12_FENCE_FLAG_NONE,
-    IID_PPV_ARGS(&fence));
-  assert(SUCCEEDED(hr));
-
-  HANDLE fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-  UINT64 fenceValue = 1;
-
-  auto waitForGPU = [&]() {
-    queue->Signal(fence.Get(), fenceValue);
-    if (fence->GetCompletedValue() < fenceValue) {
-      fence->SetEventOnCompletion(fenceValue, fenceEvent);
-      WaitForSingleObject(fenceEvent, INFINITE);
-    }
-    ++fenceValue;
-  };
 
   // CPU framebuffer (ABGR)
   uint32_t *framebuffer = new uint32_t[Width * Height];
@@ -222,16 +181,6 @@ int main() {
     WaitForSingleObject(latencyHandle, INFINITE);
 
     // copy framebuffer to uploadHeap
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
-    device->GetCopyableFootprints(
-      &gpuTextureDesc,
-      0,
-      1,
-      0,
-      &footprint,
-      NULL,
-      NULL,
-      NULL);
     printf("rowPitch: %u\n", footprint.Footprint.RowPitch);
     for (UINT y = 0; y < Height; ++y) {
       memcpy(
@@ -242,7 +191,7 @@ int main() {
 
     // copy uploadBuffer to gpuTexture
     commandAllocator->Reset();
-    commandList->Reset(commandAllocator.Get(), nullptr);
+    commandList->Reset(commandAllocator.Get(), NULL);
     D3D12_TEXTURE_COPY_LOCATION src = {
       .pResource = uploadBuffer_gpu.Get(),
       .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
@@ -253,21 +202,13 @@ int main() {
       .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
       .SubresourceIndex = 0,
     };
-    commandList->CopyTextureRegion(
-      &dst,
-      0,
-      0,
-      0,
-      &src,
-      nullptr);
+    commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, NULL);
     commandList->Close();
-
-    // Execute
     ID3D12CommandList *lists[] = {commandList.Get()};
     queue->ExecuteCommandLists(1, lists);
-    swapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
-    waitForGPU();
 
+    // present
+    swapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
     frameIndex = frameIndex ^ 1;
   }
   return 0;
