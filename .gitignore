@@ -4,3 +4,4 @@
 *.rdi
 tmp.c
 tmp.cpp
+.vs

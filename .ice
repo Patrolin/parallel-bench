@@ -1,4 +1,4 @@
-cppargs := "-march=native -masm=intel -fno-builtin -fno-signed-char"
+cppargs := "-march=native -masm=intel -fno-builtin -fno-signed-char -g"
 cargs := "-std=c99 -march=native -masm=intel -fno-builtin -fno-signed-char"
 
 PARALLEL_BENCH_EXE_NAME :: "parallel_bench.exe"
