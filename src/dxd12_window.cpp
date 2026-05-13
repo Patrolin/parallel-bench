@@ -12,6 +12,10 @@
 #include <winuser.h>
 #include <wrl.h>
 #include <stdint.h>
+#pragma comment(lib, "Kernel32.lib")
+#pragma comment(lib, "User32.lib")
+#pragma comment(lib, "DXGI.lib")
+#pragma comment(lib, "D3D12.lib")
 
 /* NOTE: `Hardware Composed: Independent Flip` if true, `Hardware: Independent Flip` if false */
 #define VSYNC 1
@@ -19,11 +23,6 @@
 static const UINT BufferCount = 2;
 /* NOTE: must be either `DXGI_FORMAT_R8G8B8A8_UNORM` or `DXGI_FORMAT_B8G8R8A8_UNORM` */
 static const DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-#pragma comment(lib, "Kernel32.lib")
-#pragma comment(lib, "User32.lib")
-#pragma comment(lib, "DXGI.lib")
-#pragma comment(lib, "D3D12.lib")
 
 /* NOTE: window size must be at least `882x699` to get `Hardware (Composed): Independent Flip` */
 DWORD g_window_width = 0;
