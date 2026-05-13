@@ -24,10 +24,32 @@ static const DXGI_FORMAT Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 #pragma comment(lib, "DXGI.lib")
 #pragma comment(lib, "D3D12.lib")
 
+/* NOTE: window size must be at least `882x699` to get `Hardware Composed: Independent Flip` */
 DWORD g_window_width = 0;
 DWORD g_window_height = 0;
 DWORD g_prev_window_width = 0;
 DWORD g_prev_window_height = 0;
+
+typedef struct GPUFrameData GPUFrameData;
+struct GPUFrameData {
+  UINT64 fence_value;
+  ID3D12CommandAllocator *allocator;
+  ID3D12GraphicsCommandList *commandList;
+  ID3D12Resource *buffer;
+};
+typedef struct GPUData GPUData;
+struct GPUData {
+  IDXGIFactory4 *factory;
+  ID3D12Debug *debugController;
+  ID3D12Device *device;
+  ID3D12CommandQueue *commandQueue;
+  IDXGISwapChain4 *swapChain;
+  ID3D12Fence *fence;
+  HANDLE fence_event;
+  UINT64 global_fence_value;
+  GPUFrameData frames[BufferCount];
+};
+GPUData g_gpu;
 
 LRESULT __stdcall window_proc(HWND window, UINT type, WPARAM wParam, LPARAM lParam) {
   LRESULT result = 0;
@@ -63,22 +85,17 @@ int main() {
   ShowWindow(window, SW_NORMAL);
 
   // create DXGI factory
-  IDXGIFactory4 *factory;
-  CreateDXGIFactory1(IID_PPV_ARGS(&factory));
+  CreateDXGIFactory1(IID_PPV_ARGS(&g_gpu.factory));
 
   // create device
-  ID3D12Debug *debugController;
-  if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
-    debugController->EnableDebugLayer();
+  if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&g_gpu.debugController)))) {
+    g_gpu.debugController->EnableDebugLayer();
   }
-
-  ID3D12Device *device;
-  D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+  D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&g_gpu.device));
 
   // create command queue
   D3D12_COMMAND_QUEUE_DESC queueDesc = {.Type = D3D12_COMMAND_LIST_TYPE_DIRECT};
-  ID3D12CommandQueue *commandQueue;
-  device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue));
+  g_gpu.device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&g_gpu.commandQueue));
 
   // create swap chain (DXGI_SWAP_EFFECT_FLIP_DISCARD)
   DXGI_SWAP_CHAIN_DESC1 scDesc = {
@@ -91,25 +108,24 @@ int main() {
     .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
     /* NOTE: allow tearing for windows overlays */
     .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING | DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT};
-  IDXGISwapChain3 *swapChain;
-  factory->CreateSwapChainForHwnd(
-    commandQueue,
+  g_gpu.factory->CreateSwapChainForHwnd(
+    g_gpu.commandQueue,
     window,
     &scDesc,
     NULL,
     NULL,
-    (IDXGISwapChain1 **)&swapChain);
+    (IDXGISwapChain1 **)&g_gpu.swapChain);
 
-  HRESULT hr = swapChain->SetMaximumFrameLatency(1);
+  HRESULT hr = g_gpu.swapChain->SetMaximumFrameLatency(1);
   assert(SUCCEEDED(hr));
-  HANDLE latencyHandle = swapChain->GetFrameLatencyWaitableObject();
+  HANDLE latencyHandle = g_gpu.swapChain->GetFrameLatencyWaitableObject();
   assert(latencyHandle != INVALID_HANDLE_VALUE);
 
   // get back buffers
-  UINT frameIndex = swapChain->GetCurrentBackBufferIndex();
+  UINT frameIndex = g_gpu.swapChain->GetCurrentBackBufferIndex();
   ID3D12Resource *backBuffers[BufferCount];
   for (UINT i = 0; i < BufferCount; ++i) {
-    swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffers[i]));
+    g_gpu.swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffers[i]));
   }
 
   // create uploadBuffer
@@ -121,22 +137,19 @@ int main() {
   D3D12_HEAP_PROPERTIES uploadHeap = {.Type = D3D12_HEAP_TYPE_UPLOAD};
 
   // create command list
-  ID3D12CommandAllocator *commandAllocator;
-  device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
+  for (UINT i = 0; i < BufferCount; i++) {
+    g_gpu.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&g_gpu.frames[i].allocator));
+    g_gpu.device->CreateCommandList(
+      0,
+      D3D12_COMMAND_LIST_TYPE_DIRECT,
+      g_gpu.frames[i].allocator,
+      NULL,
+      IID_PPV_ARGS(&g_gpu.frames[i].commandList));
+    g_gpu.frames[i].commandList->Close();
+  };
 
-  ID3D12GraphicsCommandList *commandList;
-  device->CreateCommandList(
-    0,
-    D3D12_COMMAND_LIST_TYPE_DIRECT,
-    commandAllocator,
-    NULL,
-    IID_PPV_ARGS(&commandList));
-  commandList->Close();
-
-  ID3D12Fence *fence;
-  device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
-  UINT64 fence_value = 0;
-  HANDLE fence_event = CreateEvent(NULL, false, false, NULL);
+  g_gpu.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&g_gpu.fence));
+  g_gpu.fence_event = CreateEvent(NULL, false, false, NULL);
 
   // app
   uint32_t t = 50;
@@ -152,18 +165,15 @@ int main() {
     WaitForSingleObject(latencyHandle, INFINITE);
 
     // wait for gpu idle
-    fence_value++;
-    HRESULT hr = commandQueue->Signal(fence, fence_value);
-    assert(SUCCEEDED(hr));
-    if (fence->GetCompletedValue() < fence_value) {
-      hr = fence->SetEventOnCompletion(fence_value, fence_event);
-      assert(SUCCEEDED(hr));
-      WaitForSingleObject(fence_event, INFINITE);
+    GPUFrameData *frame = &g_gpu.frames[frameIndex];
+    if (g_gpu.fence->GetCompletedValue() < frame->fence_value) {
+      g_gpu.fence->SetEventOnCompletion(frame->fence_value, g_gpu.fence_event);
+      WaitForSingleObject(g_gpu.fence_event, INFINITE);
     }
 
     // resize buffers
     uint32_t *framebuffer = new uint32_t[g_window_width * g_window_height];
-    if (g_window_width != g_prev_window_width && g_window_height != g_prev_window_height) {
+    if (g_window_width != g_prev_window_width || g_window_height != g_prev_window_height) {
       g_prev_window_width = g_window_width;
       g_prev_window_height = g_window_height;
 
@@ -175,10 +185,10 @@ int main() {
         uploadBuffer_gpu = NULL;
 
         for (UINT i = 0; i < BufferCount; ++i) { backBuffers[i]->Release(); }
-        hr = swapChain->ResizeBuffers(BufferCount, g_window_width, g_window_height, Format, DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING | DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
+        hr = g_gpu.swapChain->ResizeBuffers(BufferCount, g_window_width, g_window_height, Format, DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING | DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
         assert(SUCCEEDED(hr));
-        for (UINT i = 0; i < BufferCount; ++i) { swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffers[i])); }
-        frameIndex = swapChain->GetCurrentBackBufferIndex();
+        for (UINT i = 0; i < BufferCount; ++i) { g_gpu.swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffers[i])); }
+        frameIndex = g_gpu.swapChain->GetCurrentBackBufferIndex();
       }
       gpuTextureDesc = {
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
@@ -188,10 +198,10 @@ int main() {
         .MipLevels = 1,
         .Format = Format,
         .SampleDesc = {.Count = 1},
-        .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
       };
       UINT64 uploadSize = 0;
-      device->GetCopyableFootprints(
+      g_gpu.device->GetCopyableFootprints(
         &gpuTextureDesc,
         0,
         1,
@@ -212,7 +222,7 @@ int main() {
         .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
       };
 
-      hr = device->CreateCommittedResource(
+      hr = g_gpu.device->CreateCommittedResource(
         &uploadHeap,
         D3D12_HEAP_FLAG_NONE,
         &uploadBufferDesc,
@@ -235,6 +245,7 @@ int main() {
       }
     }
     // copy framebuffer to uploadHeap
+    printf("x: %llu/%llu, y: %llu/%llu\n", g_window_width, footprint.Footprint.Width, g_window_height, footprint.Footprint.Height);
     for (UINT y = 0; y < min(g_window_height, footprint.Footprint.Height); ++y) {
       memcpy(
         ((uint8_t *)uploadBuffer_cpu) + y * footprint.Footprint.RowPitch,
@@ -256,8 +267,8 @@ int main() {
     t += 5;
 
     // copy uploadBuffer to gpuTexture
-    commandAllocator->Reset();
-    commandList->Reset(commandAllocator, NULL);
+    frame->allocator->Reset();
+    frame->commandList->Reset(frame->allocator, NULL);
     D3D12_TEXTURE_COPY_LOCATION src = {
       .pResource = uploadBuffer_gpu,
       .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
@@ -268,7 +279,7 @@ int main() {
       .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
       .SubresourceIndex = 0,
     };
-    commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, NULL);
+    frame->commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, NULL);
 
     D3D12_RESOURCE_BARRIER barrier = {
       .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
@@ -279,20 +290,25 @@ int main() {
         .StateBefore = D3D12_RESOURCE_STATE_COPY_DEST,
         .StateAfter = D3D12_RESOURCE_STATE_PRESENT,
       }};
-    commandList->ResourceBarrier(1, &barrier);
+    frame->commandList->ResourceBarrier(1, &barrier);
 
-    commandList->Close();
-    ID3D12CommandList *lists[] = {commandList};
-    commandQueue->ExecuteCommandLists(1, lists);
+    frame->commandList->Close();
+    ID3D12CommandList *lists[] = {frame->commandList};
+    g_gpu.commandQueue->ExecuteCommandLists(1, lists);
 
     // present
     // TODO: cap framerate to slightly below monitor and disable VSYNC
     if (VSYNC) {
-      swapChain->Present(1, 0);
+      g_gpu.swapChain->Present(1, 0);
     } else {
-      swapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+      g_gpu.swapChain->Present(0, DXGI_PRESENT_ALLOW_TEARING);
     }
     frameIndex = frameIndex ^ 1;
+
+    // signal frame fence
+    g_gpu.global_fence_value++;
+    g_gpu.commandQueue->Signal(g_gpu.fence, g_gpu.global_fence_value);
+    frame->fence_value = g_gpu.global_fence_value;
   }
   return 0;
 }
