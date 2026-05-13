@@ -1,9 +1,9 @@
 // clang src/dxd12_window.cpp -o dxd12_window.exe
+#define UNICODE
+#define WIN32_LEAN_AND_MEAN
 #include <cstdint>
 #include <intsafe.h>
 #include <winerror.h>
-#define UNICODE
-#define WIN32_LEAN_AND_MEAN
 #include <assert.h>
 #include <cstdio>
 #include <windows.h>
@@ -123,14 +123,13 @@ int main() {
 
   // get back buffers
   UINT frameIndex = g_gpu.swapChain->GetCurrentBackBufferIndex();
-  ID3D12Resource *backBuffers[BufferCount];
   for (UINT i = 0; i < BufferCount; ++i) {
-    g_gpu.swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffers[i]));
+    g_gpu.swapChain->GetBuffer(i, IID_PPV_ARGS(&g_gpu.frames[i].buffer));
   }
 
   // create uploadBuffer
   ID3D12Resource *uploadBuffer_gpu = NULL;
-  D3D12_RANGE *uploadBuffer_cpu = NULL;
+  uint8_t *uploadBuffer_cpu = NULL;
   D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
   D3D12_RESOURCE_DESC gpuTextureDesc;
   D3D12_RESOURCE_DESC uploadBufferDesc;
@@ -164,7 +163,7 @@ int main() {
     // wait until render queue is empty
     WaitForSingleObject(latencyHandle, INFINITE);
 
-    // wait for gpu idle
+    // wait for gpu buffer to be idle
     GPUFrameData *frame = &g_gpu.frames[frameIndex];
     if (g_gpu.fence->GetCompletedValue() < frame->fence_value) {
       g_gpu.fence->SetEventOnCompletion(frame->fence_value, g_gpu.fence_event);
@@ -184,11 +183,12 @@ int main() {
         uploadBuffer_gpu->Release();
         uploadBuffer_gpu = NULL;
 
-        for (UINT i = 0; i < BufferCount; ++i) { backBuffers[i]->Release(); }
+        for (UINT i = 0; i < BufferCount; ++i) { g_gpu.frames[i].buffer->Release(); }
         hr = g_gpu.swapChain->ResizeBuffers(BufferCount, g_window_width, g_window_height, Format, DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING | DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT);
         assert(SUCCEEDED(hr));
-        for (UINT i = 0; i < BufferCount; ++i) { g_gpu.swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffers[i])); }
+        for (UINT i = 0; i < BufferCount; ++i) { g_gpu.swapChain->GetBuffer(i, IID_PPV_ARGS(&g_gpu.frames[i].buffer)); }
         frameIndex = g_gpu.swapChain->GetCurrentBackBufferIndex();
+        frame = &g_gpu.frames[frameIndex];
       }
       gpuTextureDesc = {
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
@@ -248,7 +248,7 @@ int main() {
     printf("x: %llu/%llu, y: %llu/%llu\n", g_window_width, footprint.Footprint.Width, g_window_height, footprint.Footprint.Height);
     for (UINT y = 0; y < min(g_window_height, footprint.Footprint.Height); ++y) {
       memcpy(
-        ((uint8_t *)uploadBuffer_cpu) + y * footprint.Footprint.RowPitch,
+        uploadBuffer_cpu + y * footprint.Footprint.RowPitch,
         framebuffer + y * g_window_width,
         min(g_window_width, footprint.Footprint.Width) * 4);
     }
@@ -269,13 +269,14 @@ int main() {
     // copy uploadBuffer to gpuTexture
     frame->allocator->Reset();
     frame->commandList->Reset(frame->allocator, NULL);
+
     D3D12_TEXTURE_COPY_LOCATION src = {
       .pResource = uploadBuffer_gpu,
       .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
       .PlacedFootprint = footprint,
     };
     D3D12_TEXTURE_COPY_LOCATION dst = {
-      .pResource = backBuffers[frameIndex],
+      .pResource = frame->buffer,
       .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
       .SubresourceIndex = 0,
     };
@@ -285,7 +286,7 @@ int main() {
       .Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
       .Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
       .Transition = {
-        .pResource = backBuffers[frameIndex],
+        .pResource = frame->buffer,
         .Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
         .StateBefore = D3D12_RESOURCE_STATE_COPY_DEST,
         .StateAfter = D3D12_RESOURCE_STATE_PRESENT,
@@ -293,8 +294,7 @@ int main() {
     frame->commandList->ResourceBarrier(1, &barrier);
 
     frame->commandList->Close();
-    ID3D12CommandList *lists[] = {frame->commandList};
-    g_gpu.commandQueue->ExecuteCommandLists(1, lists);
+    g_gpu.commandQueue->ExecuteCommandLists(1, (ID3D12CommandList *const *)&frame->commandList);
 
     // present
     // TODO: cap framerate to slightly below monitor and disable VSYNC
@@ -306,8 +306,7 @@ int main() {
     frameIndex = frameIndex ^ 1;
 
     // signal frame fence
-    g_gpu.global_fence_value++;
-    g_gpu.commandQueue->Signal(g_gpu.fence, g_gpu.global_fence_value);
+    g_gpu.commandQueue->Signal(g_gpu.fence, ++g_gpu.global_fence_value);
     frame->fence_value = g_gpu.global_fence_value;
   }
   return 0;
