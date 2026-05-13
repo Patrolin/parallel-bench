@@ -44,6 +44,7 @@ struct GPUData {
   ID3D12Device *device;
   ID3D12CommandQueue *commandQueue;
   IDXGISwapChain4 *swapChain;
+  HANDLE latencyHandle;
   ID3D12Fence *fence;
   HANDLE fence_event;
   UINT64 global_fence_value;
@@ -118,8 +119,8 @@ int main() {
 
   HRESULT hr = g_gpu.swapChain->SetMaximumFrameLatency(1);
   assert(SUCCEEDED(hr));
-  HANDLE latencyHandle = g_gpu.swapChain->GetFrameLatencyWaitableObject();
-  assert(latencyHandle != INVALID_HANDLE_VALUE);
+  g_gpu.latencyHandle = g_gpu.swapChain->GetFrameLatencyWaitableObject();
+  assert(g_gpu.latencyHandle != INVALID_HANDLE_VALUE);
 
   // get back buffers
   UINT frameIndex = g_gpu.swapChain->GetCurrentBackBufferIndex();
@@ -158,7 +159,7 @@ int main() {
     }
 
     // wait until render queue is empty
-    WaitForSingleObject(latencyHandle, INFINITE);
+    WaitForSingleObject(g_gpu.latencyHandle, INFINITE);
 
     // wait for gpu buffer to be idle
     GPUFrameData *frame = &g_gpu.frames[frameIndex];
