@@ -13,6 +13,7 @@
 #include <wrl.h>
 #include <stdint.h>
 
+/* NOTE: `Hardware Composed: Independent Flip` if true, `Hardware: Independent Flip` if false */
 #define VSYNC 1
 /* NOTE: must be at least 2 */
 static const UINT BufferCount = 2;
