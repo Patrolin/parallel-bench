@@ -265,7 +265,7 @@ int main() {
 #endif
     t += 5;
 
-    // copy uploadBuffer to gpuTexture
+    // copy uploadBuffer to gpu buffer
     frame->allocator->Reset();
     frame->commandList->Reset(frame->allocator, NULL);
 
