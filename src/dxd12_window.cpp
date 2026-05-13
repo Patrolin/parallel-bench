@@ -9,7 +9,6 @@
 #include <winuser.h>
 #include <wrl.h>
 #include <stdint.h>
-using Microsoft::WRL::ComPtr;
 
 #define VSYNC 1
 static const UINT Width = 1280;
@@ -53,16 +52,16 @@ int main() {
   ShowWindow(window, SW_NORMAL);
 
   // create DXGI factory
-  ComPtr<IDXGIFactory4> factory;
+  IDXGIFactory4 *factory;
   CreateDXGIFactory1(IID_PPV_ARGS(&factory));
 
   // create device
-  ComPtr<ID3D12Device> device;
+  ID3D12Device *device;
   D3D12CreateDevice(NULL, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
 
   // create command queue
   D3D12_COMMAND_QUEUE_DESC queueDesc = {.Type = D3D12_COMMAND_LIST_TYPE_DIRECT};
-  ComPtr<ID3D12CommandQueue> queue;
+  ID3D12CommandQueue *queue;
   device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&queue));
 
   // create swap chain (DXGI_SWAP_EFFECT_FLIP_DISCARD)
@@ -76,18 +75,15 @@ int main() {
     .SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD,
     /* NOTE: allow tearing for windows overlays */
     .Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING | DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT};
-  ComPtr<IDXGISwapChain1> swapChain1;
+  IDXGISwapChain3 *swapChain;
   factory->CreateSwapChainForHwnd(
-    queue.Get(),
+    queue,
     window,
     &scDesc,
     NULL,
     NULL,
-    &swapChain1);
+    (IDXGISwapChain1 **)&swapChain);
 
-  ComPtr<IDXGISwapChain3> swapChain;
-  swapChain1.As(&swapChain);
-  assert(swapChain.Get() == swapChain1.Get());
   HRESULT hr = swapChain->SetMaximumFrameLatency(1);
   assert(SUCCEEDED(hr));
   HANDLE latencyHandle = swapChain->GetFrameLatencyWaitableObject();
@@ -95,7 +91,7 @@ int main() {
 
   // get back buffers
   UINT frameIndex = swapChain->GetCurrentBackBufferIndex();
-  ComPtr<ID3D12Resource> backBuffers[BufferCount];
+  ID3D12Resource *backBuffers[BufferCount];
   for (UINT i = 0; i < BufferCount; ++i) {
     swapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffers[i]));
   }
@@ -135,7 +131,7 @@ int main() {
     .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
   };
 
-  ComPtr<ID3D12Resource> uploadBuffer_gpu;
+  ID3D12Resource *uploadBuffer_gpu;
   device->CreateCommittedResource(
     &uploadHeap,
     D3D12_HEAP_FLAG_NONE,
@@ -147,14 +143,14 @@ int main() {
   uploadBuffer_gpu->Map(0, NULL, (void **)&uploadBuffer_cpu);
 
   // create command list
-  ComPtr<ID3D12CommandAllocator> commandAllocator;
+  ID3D12CommandAllocator *commandAllocator;
   device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&commandAllocator));
 
-  ComPtr<ID3D12GraphicsCommandList> commandList;
+  ID3D12GraphicsCommandList *commandList;
   device->CreateCommandList(
     0,
     D3D12_COMMAND_LIST_TYPE_DIRECT,
-    commandAllocator.Get(),
+    commandAllocator,
     NULL,
     IID_PPV_ARGS(&commandList));
   commandList->Close();
@@ -204,20 +200,20 @@ int main() {
 
     // copy uploadBuffer to gpuTexture
     commandAllocator->Reset();
-    commandList->Reset(commandAllocator.Get(), NULL);
+    commandList->Reset(commandAllocator, NULL);
     D3D12_TEXTURE_COPY_LOCATION src = {
-      .pResource = uploadBuffer_gpu.Get(),
+      .pResource = uploadBuffer_gpu,
       .Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
       .PlacedFootprint = footprint,
     };
     D3D12_TEXTURE_COPY_LOCATION dst = {
-      .pResource = backBuffers[frameIndex].Get(),
+      .pResource = backBuffers[frameIndex],
       .Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
       .SubresourceIndex = 0,
     };
     commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, NULL);
     commandList->Close();
-    ID3D12CommandList *lists[] = {commandList.Get()};
+    ID3D12CommandList *lists[] = {commandList};
     queue->ExecuteCommandLists(1, lists);
 
     // present
