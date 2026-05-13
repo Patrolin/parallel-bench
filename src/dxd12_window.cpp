@@ -161,7 +161,7 @@ int main() {
     // wait until render queue is empty
     WaitForSingleObject(g_gpu.latencyHandle, INFINITE);
 
-    // wait for gpu buffer to be idle
+    // wait until gpu buffer is idle
     GPUFrameData *frame = &g_gpu.frames[frameIndex];
     if (g_gpu.fence->GetCompletedValue() < frame->fence_value) {
       g_gpu.fence->SetEventOnCompletion(frame->fence_value, g_gpu.fence_event);
