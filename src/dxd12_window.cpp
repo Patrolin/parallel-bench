@@ -243,7 +243,7 @@ int main() {
         framebuffer[y * g_window_width + x] = 0xFF000000 | (b << 16) | (g << 8) | (r);
       }
     }
-    // copy framebuffer to uploadHeap
+    // copy framebuffer to uploadBuffer
     printf("x: %llu/%llu, y: %llu/%llu\n", g_window_width, footprint.Footprint.Width, g_window_height, footprint.Footprint.Height);
     for (UINT y = 0; y < min(g_window_height, footprint.Footprint.Height); ++y) {
       memcpy(
@@ -252,7 +252,7 @@ int main() {
         min(g_window_width, footprint.Footprint.Width) * 4);
     }
 #else
-    // render to uploadHeap
+    // render to uploadBuffer
     for (UINT y = 0; y < footprint.Footprint.Height; ++y) {
       for (UINT x = 0; x < footprint.Footprint.Width; ++x) {
         uint32_t r = (uint8_t)(x + t);
