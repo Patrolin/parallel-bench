@@ -131,9 +131,6 @@ int main() {
   ID3D12Resource *uploadBuffer_gpu = NULL;
   uint8_t *uploadBuffer_cpu = NULL;
   D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
-  D3D12_RESOURCE_DESC gpuTextureDesc;
-  D3D12_RESOURCE_DESC uploadBufferDesc;
-  D3D12_HEAP_PROPERTIES uploadHeap = {.Type = D3D12_HEAP_TYPE_UPLOAD};
 
   // create command list
   for (UINT i = 0; i < BufferCount; i++) {
@@ -190,7 +187,7 @@ int main() {
         frameIndex = g_gpu.swapChain->GetCurrentBackBufferIndex();
         frame = &g_gpu.frames[frameIndex];
       }
-      gpuTextureDesc = {
+      D3D12_RESOURCE_DESC gpuTextureDesc = {
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         .Width = g_window_width,
         .Height = g_window_height,
@@ -212,7 +209,8 @@ int main() {
         &uploadSize);
       printf("uploadSize: %llu\n", uploadSize);
 
-      uploadBufferDesc = {
+      D3D12_HEAP_PROPERTIES uploadHeap = {.Type = D3D12_HEAP_TYPE_UPLOAD};
+      D3D12_RESOURCE_DESC uploadBufferDesc = {
         .Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
         .Width = uploadSize,
         .Height = 1,
@@ -221,7 +219,6 @@ int main() {
         .SampleDesc = {.Count = 1},
         .Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
       };
-
       hr = g_gpu.device->CreateCommittedResource(
         &uploadHeap,
         D3D12_HEAP_FLAG_NONE,
@@ -230,6 +227,7 @@ int main() {
         NULL,
         IID_PPV_ARGS(&uploadBuffer_gpu));
       assert(SUCCEEDED(hr));
+
       hr = uploadBuffer_gpu->Map(0, NULL, (void **)&uploadBuffer_cpu);
       assert(SUCCEEDED(hr));
     }
