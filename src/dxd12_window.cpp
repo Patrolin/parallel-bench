@@ -98,7 +98,7 @@ int main() {
   D3D12_COMMAND_QUEUE_DESC queueDesc = {.Type = D3D12_COMMAND_LIST_TYPE_DIRECT};
   g_gpu.device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&g_gpu.commandQueue));
 
-  // create swap chain (DXGI_SWAP_EFFECT_FLIP_DISCARD)
+  // create swap chain
   DXGI_SWAP_CHAIN_DESC1 scDesc = {
     .Width = g_window_width,
     .Height = g_window_height,
