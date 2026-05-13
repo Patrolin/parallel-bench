@@ -47,7 +47,7 @@ struct GPUData {
   HANDLE latencyHandle;
   ID3D12Fence *fence;
   HANDLE fence_event;
-  UINT64 global_fence_value;
+  UINT64 next_fence_value;
   GPUFrameData frames[BufferCount];
 };
 GPUData g_gpu;
@@ -305,8 +305,8 @@ int main() {
     frameIndex = frameIndex ^ 1;
 
     // signal frame fence
-    g_gpu.commandQueue->Signal(g_gpu.fence, ++g_gpu.global_fence_value);
-    frame->fence_value = g_gpu.global_fence_value;
+    g_gpu.commandQueue->Signal(g_gpu.fence, ++g_gpu.next_fence_value);
+    frame->fence_value = g_gpu.next_fence_value;
   }
   return 0;
 }
