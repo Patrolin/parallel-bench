@@ -47,10 +47,10 @@ STRUCT(f32r2) {
   f32 sc;
   f32 xy;
 };
-f32r2 rotor_from_vectors(f32v2 a, f32v2 b) {
+f32r2 rotor_between_vectors(f32v2 from, f32v2 to) {
   return (f32r2){
-    a.x * b.x + a.y * b.y,
-    a.x * b.y - a.y * b.x,
+    from.x * to.x + from.y * to.y,
+    from.x * to.y - from.y * to.x,
   };
 }
 f32v2 rotate(f32v2 a, f32r2 r) {
