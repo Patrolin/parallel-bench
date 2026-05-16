@@ -14,11 +14,9 @@
 // f32 vector
 STRUCT(f32v2) {
   union {
-    // vector
     struct {
       f32 x, y;
     };
-    // rotor
     struct {
       f32 sc, xy;
     };
@@ -45,39 +43,34 @@ f32 norm(f32v2 a) {
   return sqrt(a.x * a.x + a.y * a.y);
 }
 f32v2 normalized(f32v2 a) {
-  f32 a_norm = 1 / norm(a);
-  return f32v2(a.x * a_norm, a.y * a_norm);
+  f32 a_norm = norm(a);
+  return f32v2(a.x / a_norm, a.y / a_norm);
 }
-// f32 normalized rotor
-STRUCT(f32r2) {
-  f32 xy;
-};
-f32v2 rotor_expand(f32r2 r) {
-  return f32v2(sqrt(1 - r.xy * r.xy), r.xy);
+// f32 rotor (with half angles like quaternions for double cover)
+f32v2 rotor_from_angle(f32 radians) {
+  return (f32v2){cos(radians / 2), sin(radians / 2)};
 }
-f32r2 rotor_from_angle(f32 radians) {
-  return (f32r2){sin(radians)};
+f32v2 rotor_from_vectors(f32v2 a, f32v2 b) {
+  f32 cosine = a.x * b.x + a.y * b.y;
+  f32 half_cosine = sqrt((1.0f + cosine) * 0.5f);
+  f32 half_sine = sqrt((1.0f - cosine) * 0.5f);
+  return normalized(f32v2(half_cosine, half_sine));
 }
-f32r2 rotor_from_vectors(f32v2 a, f32v2 b) {
-  f32v2 R = (f32v2){
-    a.x * b.x + a.y * b.y,
-    a.x * b.y - a.y * b.x,
-  };
-  return (f32r2){R.xy / norm(R)};
-}
-f32r2 rotor_nlerp(f32 t, f32r2 ra, f32r2 rb) {
-  f32v2 Ra = rotor_expand(ra);
-  f32v2 Rb = rotor_expand(rb);
+f32v2 rotor_nlerp(f32 t, f32v2 Ra, f32v2 Rb) {
   f32v2 R = (f32v2){
     (1 - t) * Ra.sc + t * Rb.sc,
     (1 - t) * Ra.xy + t * Rb.xy,
   };
-  return (f32r2){R.xy / norm(R)};
+  return normalized(R);
 }
-f32v2 rotate(f32v2 a, f32r2 r) {
-  f32v2 R = rotor_expand(r);
+/* NOTE: `R*a*reverse(R)` */
+f32v2 rotate(f32v2 a, f32v2 R) {
+  f32v2 middle = (f32v2){
+    R.sc * a.x + R.xy * a.y,
+    R.sc * a.y - R.xy * a.x,
+  };
   return (f32v2){
-    a.x * R.sc - a.y * R.xy,
-    a.x * R.xy + a.y * R.sc,
+    middle.x * R.sc + middle.y * R.xy,
+    middle.y * R.sc - middle.x * R.xy,
   };
 }
