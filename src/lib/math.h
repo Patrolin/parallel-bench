@@ -47,7 +47,11 @@ f32r2 rotor_from_angle(f32 angle) {
   return (f32r2){sin(angle)};
 }
 f32r2 rotor_from_vectors(f32v2 a, f32v2 b) {
-  return (f32r2){a.x * b.y - a.y * b.x};
+  f32v2 full_rotor = (f32v2){
+    a.x * b.x + a.y * b.y,
+    a.x * b.y - a.y * b.x,
+  };
+  return (f32r2){full_rotor.y / norm(full_rotor)};
 }
 f32v2 rotate(f32v2 a, f32r2 r) {
   f32 scalar = sqrt(1 - r.xy * r.xy);
