@@ -43,6 +43,9 @@ f32v2 normalized(f32v2 a) {
 STRUCT(f32r2) {
   f32 xy;
 };
+f32r2 rotor_from_angle(f32 angle) {
+  return (f32r2){sin(angle)};
+}
 f32r2 rotor_from_vectors(f32v2 a, f32v2 b) {
   return (f32r2){a.x * b.y - a.y * b.x};
 }
