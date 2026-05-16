@@ -55,8 +55,8 @@ STRUCT(f32r2) {
 f32v2 rotor_expand(f32r2 r) {
   return f32v2(sqrt(1 - r.xy * r.xy), r.xy);
 }
-f32r2 rotor_from_angle(f32 angle) {
-  return (f32r2){sin(angle)};
+f32r2 rotor_from_angle(f32 radians) {
+  return (f32r2){sin(radians)};
 }
 f32r2 rotor_from_vectors(f32v2 a, f32v2 b) {
   f32v2 R = (f32v2){
