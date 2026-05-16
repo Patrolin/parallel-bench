@@ -47,16 +47,16 @@ f32r2 rotor_from_angle(f32 angle) {
   return (f32r2){sin(angle)};
 }
 f32r2 rotor_from_vectors(f32v2 a, f32v2 b) {
-  f32v2 full_rotor = (f32v2){
+  f32v2 R = (f32v2){
     a.x * b.x + a.y * b.y,
     a.x * b.y - a.y * b.x,
   };
-  return (f32r2){full_rotor.y / norm(full_rotor)};
+  return (f32r2){R.y / norm(R)};
 }
-f32v2 rotate(f32v2 a, f32r2 r) {
-  f32 scalar = sqrt(1 - r.xy * r.xy);
+f32v2 rotate(f32v2 a, f32r2 R) {
+  f32 R_sc = sqrt(1 - R.xy * R.xy);
   return (f32v2){
-    a.x * scalar - a.y * r.xy,
-    a.x * r.xy + a.y * scalar,
+    a.x * R_sc - a.y * R.xy,
+    a.x * R.xy + a.y * R_sc,
   };
 }
