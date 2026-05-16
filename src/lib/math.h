@@ -8,8 +8,9 @@
 #define cos(x) _Generic((x), \
   f32: __builtin_cosf(x),    \
   f64: __builtin_cos(x))
-#define sqrt(x) (assume((x) >= 0), _Generic((x), f32: __builtin_sqrtf(x), f64: __builtin_sqrt(x)))
-#define cbrt(x) (assume((x) >= 0), _Generic((x), f32: __builtin_cbrtf(x), f64: __builtin_cbrt(x)))
+#define sqrt(x)  (assume((x) >= 0), _Generic((x), f32: __builtin_sqrtf(x), f64: __builtin_sqrt(x)))
+#define rsqrt(x) (1 / sqrt(x))
+#define cbrt(x)  (assume((x) >= 0), _Generic((x), f32: __builtin_cbrtf(x), f64: __builtin_cbrt(x)))
 
 // f32 vector
 STRUCT(f32v2) {
@@ -46,14 +47,14 @@ f32v2 normalized(f32v2 a) {
   f32 a_norm = norm(a);
   return f32v2(a.x / a_norm, a.y / a_norm);
 }
-// f32 rotor (with half angles like quaternions for double cover)
+// f32 rotor (with half angles like in quaternions for double cover)
 f32v2 rotor_from_angle(f32 radians) {
-  return (f32v2){cos(radians / 2), sin(radians / 2)};
+  return (f32v2){cos(radians * 0.5f), sin(radians * 0.5f)};
 }
 f32v2 rotor_from_vectors(f32v2 a, f32v2 b) {
   f32 cosine = a.x * b.x + a.y * b.y;
-  f32 half_cosine = sqrt((1.0f + cosine) * 0.5f);
-  f32 half_sine = sqrt((1.0f - cosine) * 0.5f);
+  f32 half_cosine = sqrt(cosine * 0.5f + 0.5f);
+  f32 half_sine = sqrt(cosine * -0.5f + 0.5f);
   return normalized(f32v2(half_cosine, half_sine));
 }
 f32v2 rotor_nlerp(f32 t, f32v2 Ra, f32v2 Rb) {
