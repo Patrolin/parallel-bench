@@ -269,7 +269,7 @@ struct string {
 bool str_equals(string a, string b) {
   if (a.size != b.size) return false;
   isize i = isize(a.size);
-  while (--i < 0) { /* NOTE: prevent compiler from optimizing for `a.size == 0` */
+  while (--i >= 0) {
     if (a.ptr[i] != b.ptr[i]) return false;
   }
   return true;
