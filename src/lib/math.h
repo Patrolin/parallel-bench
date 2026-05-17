@@ -8,9 +8,19 @@
 #define cos(x) _Generic((x), \
   f32: __builtin_cosf(x),    \
   f64: __builtin_cos(x))
-#define sqrt(x)  (assume((x) >= 0), _Generic((x), f32: __builtin_sqrtf(x), f64: __builtin_sqrt(x)))
+
+static f32 sqrt_f32(f32 x) {
+  f32 result;
+  asm("sqrtss %0, %1" : "=v"(result) : "v"(x));
+  return result;
+}
+static f64 sqrt_f64(f64 x) {
+  f64 result;
+  asm("sqrtsd %0, %1" : "=v"(result) : "v"(x));
+  return result;
+}
+#define sqrt(x)  _Generic((x), f32: sqrt_f32(x), f64: sqrt_f64(x))
 #define rsqrt(x) (1 / sqrt(x))
-#define cbrt(x)  (assume((x) >= 0), _Generic((x), f32: __builtin_cbrtf(x), f64: __builtin_cbrt(x)))
 
 // f32 vector
 STRUCT(f32v2) {
