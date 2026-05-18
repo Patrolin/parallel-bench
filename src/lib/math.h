@@ -57,15 +57,21 @@ f32v2 normalized(f32v2 a) {
   f32 a_norm = norm(a);
   return f32v2(a.x / a_norm, a.y / a_norm);
 }
-// f32 rotor (with half angles like in quaternions for double cover)
+// f32 rotor
 f32v2 rotor_from_angle(f32 radians) {
   return (f32v2){cos(radians * 0.5f), sin(radians * 0.5f)};
 }
+f32v2 rotor_sqrt(f32v2 R) {
+  f32v2 R2 = R;
+  R.x += 0.999999940f; /* NOTE: avoid dividing by zero for f32v2(-1, 0) */
+  return normalized(R);
+}
 f32v2 rotor_from_vectors(f32v2 a, f32v2 b) {
-  f32 cosine = a.x * b.x + a.y * b.y;
-  f32 half_cosine = sqrt(cosine * 0.5f + 0.5f);
-  f32 half_sine = sqrt(cosine * -0.5f + 0.5f);
-  return normalized(f32v2(half_cosine, half_sine));
+  f32v2 R = (f32v2){
+    a.x * b.x + a.y * b.y,
+    a.x * b.y - a.y * b.x,
+  };
+  return rotor_sqrt(R);
 }
 f32v2 rotor_nlerp(f32 t, f32v2 Ra, f32v2 Rb) {
   f32v2 R = (f32v2){
@@ -74,7 +80,17 @@ f32v2 rotor_nlerp(f32 t, f32v2 Ra, f32v2 Rb) {
   };
   return normalized(R);
 }
-/* NOTE: `R*a*reverse(R)` */
+/* NOTE: sandwich product `R*a*reverse(R)` */
+f32v2 reflect(f32v2 a, f32v2 b) {
+  f32v2 middle = (f32v2){
+    a.x * b.x + a.y * b.y,
+    a.x * b.y - a.y * b.x,
+  };
+  return (f32v2){
+    middle.sc * a.x + middle.xy * a.y,
+    middle.sc * a.y - middle.xy * a.x,
+  };
+}
 f32v2 rotate(f32v2 a, f32v2 R) {
   f32v2 middle = (f32v2){
     R.sc * a.x + R.xy * a.y,
