@@ -61,9 +61,11 @@ f32v2 normalized_or_undefined(f32v2 a) {
 f32v2 rotor_from_angle(f32 radians) {
   return (f32v2){cos(radians * 0.5f), sin(radians * 0.5f)};
 }
-f32v2 rotor_sqrt(f32v2 R) {
-  f32v2 R2 = R;
-  R.sc += 0.999999940f; /* NOTE: avoid dividing by zero for f32v2(-1, 0) */
+f32v2 rotor_sqrt(f32v2 R0) {
+  f32v2 R = (f32v2){
+    R0.sc + 1,
+    R0.xy + 1.40129846e-45f, /* NOTE: avoid dividing by zero for f32v2(-1, 0) */
+  };
   return normalized_or_undefined(R);
 }
 f32v2 rotor_from_vectors(f32v2 a, f32v2 b) {
