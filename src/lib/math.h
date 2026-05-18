@@ -53,7 +53,7 @@ f32 norm_squared(f32v2 a) {
 f32 norm(f32v2 a) {
   return sqrt(a.x * a.x + a.y * a.y);
 }
-f32v2 normalized(f32v2 a) {
+f32v2 normalized_or_undefined(f32v2 a) {
   f32 a_norm = norm(a);
   return f32v2(a.x / a_norm, a.y / a_norm);
 }
@@ -63,8 +63,8 @@ f32v2 rotor_from_angle(f32 radians) {
 }
 f32v2 rotor_sqrt(f32v2 R) {
   f32v2 R2 = R;
-  R.x += 0.999999940f; /* NOTE: avoid dividing by zero for f32v2(-1, 0) */
-  return normalized(R);
+  R.sc += 0.999999940f; /* NOTE: avoid dividing by zero for f32v2(-1, 0) */
+  return normalized_or_undefined(R);
 }
 f32v2 rotor_from_vectors(f32v2 a, f32v2 b) {
   f32v2 R = (f32v2){
@@ -78,7 +78,7 @@ f32v2 rotor_nlerp(f32 t, f32v2 Ra, f32v2 Rb) {
     (1 - t) * Ra.sc + t * Rb.sc,
     (1 - t) * Ra.xy + t * Rb.xy,
   };
-  return normalized(R);
+  return normalized_or_undefined(R);
 }
 /* NOTE: sandwich product `R*a*reverse(R)` */
 f32v2 reflect(f32v2 a, f32v2 b) {
