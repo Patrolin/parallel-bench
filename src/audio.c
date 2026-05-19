@@ -21,7 +21,7 @@ int main() {
   assert(hr >= 0);
   hr = XAudio2Create(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR);
   assert(hr >= 0);
-  hr = IXAudio2_CreateMasteringVoice(
+  hr = xaudio->lpVtbl->CreateMasteringVoice(
     xaudio,
     &xaudioMasterVoice,
     XAUDIO2_DEFAULT_CHANNELS,
@@ -44,7 +44,7 @@ int main() {
     .nBlockAlign = nBlockAlign,
     .nAvgBytesPerSec = SAMPLE_RATE * nBlockAlign,
   };
-  hr = IXAudio2_CreateSourceVoice(
+  hr = xaudio->lpVtbl->CreateSourceVoice(
     xaudio,
     &xaudioSourceVoice,
     (WAVEFORMATEX *)&format,
@@ -73,9 +73,9 @@ int main() {
     .pAudioData = (BYTE *)audio_buffer,
     .LoopCount = 0,
   };
-  hr = IXAudio2SourceVoice_SubmitSourceBuffer(xaudioSourceVoice, &xaudioBuffer, NULL);
+  hr = xaudioSourceVoice->lpVtbl->SubmitSourceBuffer(xaudioSourceVoice, &xaudioBuffer, NULL);
   assert(SUCCEEDED(hr));
-  IXAudio2SourceVoice_Start(xaudioSourceVoice, 0, 0);
+  xaudioSourceVoice->lpVtbl->Start(xaudioSourceVoice, 0, 0);
   assert(SUCCEEDED(hr));
   for (;;) {
     // TODO: use callback to keep generating more data
