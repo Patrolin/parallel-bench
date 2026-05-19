@@ -32,18 +32,19 @@ int main() {
     AudioCategory_GameMedia);
   assert(hr >= 0);
   // init buffers
-#define SAMPLE_RATE     48000
-#define CHANNELS        2
-#define BITS_PER_SAMPLE 16
-  uint16_t nBlockAlign = (CHANNELS * BITS_PER_SAMPLE) / 8;
+#define AUDIO_SAMPLE_RATE     48000
+#define AUDIO_CHANNELS        2
+#define AUDIO_FORMAT          WAVE_FORMAT_IEEE_FLOAT
+#define AUDIO_BITS_PER_SAMPLE 32
+  uint16_t nBlockAlign = (AUDIO_CHANNELS * AUDIO_BITS_PER_SAMPLE) / 8;
   WAVEFORMATEXTENSIBLE format = {
     .Format = {
-      .wFormatTag = WAVE_FORMAT_PCM,
-      .nChannels = CHANNELS,
-      .nSamplesPerSec = SAMPLE_RATE,
-      .nAvgBytesPerSec = SAMPLE_RATE * nBlockAlign,
+      .wFormatTag = AUDIO_FORMAT,
+      .nChannels = AUDIO_CHANNELS,
+      .nSamplesPerSec = AUDIO_SAMPLE_RATE,
+      .nAvgBytesPerSec = AUDIO_SAMPLE_RATE * nBlockAlign,
       .nBlockAlign = nBlockAlign,
-      .wBitsPerSample = BITS_PER_SAMPLE,
+      .wBitsPerSample = AUDIO_BITS_PER_SAMPLE,
       .cbSize = 0,
     },
     .dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT,
@@ -60,12 +61,13 @@ int main() {
   assert(hr >= 0);
 // TODO: submit audio in 48kHz * 0.010s chunks
 #define AUDIO_CHUNK_SIZE   48000
-#define LEFT_CHANNEL_DELAY 10
-  int16_t audio_buffer[AUDIO_CHUNK_SIZE * CHANNELS] = {};
+#define LEFT_CHANNEL_DELAY 1
+  float audio_buffer[AUDIO_CHUNK_SIZE * AUDIO_CHANNELS] = {};
+  _Static_assert(sizeof(audio_buffer[0]) == AUDIO_BITS_PER_SAMPLE / 8, "sizeof(audio_buffer[0]) == AUDIO_BITS_PER_SAMPLE / 8");
   for (int t = 0; t < AUDIO_CHUNK_SIZE; t++) {
-    int16_t left = (t - LEFT_CHANNEL_DELAY) % 100 < 50 ? 1500 : -1500;
+    float left = (t - LEFT_CHANNEL_DELAY) % 100 < 50 ? 0.05f : -0.05f;
     if (t - LEFT_CHANNEL_DELAY < 0) left = 0;
-    int16_t right = t % 100 < 50 ? 1500 : -1500;
+    float right = t % 100 < 50 ? 0.05f : -0.05f;
     audio_buffer[2 * t] = left;
     audio_buffer[2 * t + 1] = right;
   }
