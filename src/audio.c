@@ -39,11 +39,12 @@ int main() {
   WAVEFORMATEXTENSIBLE format = {
     .Format = {
       .wFormatTag = WAVE_FORMAT_PCM,
-      .nSamplesPerSec = SAMPLE_RATE,
       .nChannels = CHANNELS,
-      .wBitsPerSample = BITS_PER_SAMPLE,
-      .nBlockAlign = nBlockAlign,
+      .nSamplesPerSec = SAMPLE_RATE,
       .nAvgBytesPerSec = SAMPLE_RATE * nBlockAlign,
+      .nBlockAlign = nBlockAlign,
+      .wBitsPerSample = BITS_PER_SAMPLE,
+      .cbSize = 0,
     },
     .dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT,
   };
@@ -58,26 +59,23 @@ int main() {
     NULL);
   assert(hr >= 0);
 // TODO: submit audio in 48kHz * 0.010s chunks
-#define AUDIO_BUFFER_SIZE  48000 * CHANNELS
+#define AUDIO_CHUNK_SIZE   48000
 #define LEFT_CHANNEL_DELAY 10
-  int16_t audio_buffer[AUDIO_BUFFER_SIZE] = {};
-  for (int i = 0; i < AUDIO_BUFFER_SIZE; i++) {
-    bool is_left_channel = i % 2 == 0;
-    int t = (i / 2) + (is_left_channel ? LEFT_CHANNEL_DELAY : 0);
-    if ((t % 100) < 50) {
-      audio_buffer[i] = 1500;
-    } else {
-      audio_buffer[i] = -1500;
-    }
+  int16_t audio_buffer[AUDIO_CHUNK_SIZE * CHANNELS] = {};
+  for (int t = 0; t < AUDIO_CHUNK_SIZE; t++) {
+    int16_t left = (t - LEFT_CHANNEL_DELAY) % 100 < 50 ? 1500 : -1500;
+    if (t - LEFT_CHANNEL_DELAY < 0) left = 0;
+    int16_t right = t % 100 < 50 ? 1500 : -1500;
+    audio_buffer[2 * t] = left;
+    audio_buffer[2 * t + 1] = right;
   }
-  printf("  [0]: %i\n", audio_buffer[0]);
-  printf(" [50]: %i\n", audio_buffer[50]);
-  printf("[100]: %i\n", audio_buffer[100]);
-  printf("[150]: %i\n", audio_buffer[150]);
-  printf("[200]: %i\n", audio_buffer[200]);
+  printf("      [0, 1]: %i, %i\n", audio_buffer[0], audio_buffer[1]);
+  printf("    [50, 51]: %i, %i\n", audio_buffer[50], audio_buffer[51]);
+  printf("  [150, 151]: %i, %i\n", audio_buffer[150], audio_buffer[151]);
+  printf("  [250, 251]: %i, %i\n", audio_buffer[250], audio_buffer[251]);
   XAUDIO2_BUFFER xaudioBuffer = {
     .Flags = XAUDIO2_END_OF_STREAM,
-    .AudioBytes = AUDIO_BUFFER_SIZE * sizeof(audio_buffer[0]),
+    .AudioBytes = AUDIO_CHUNK_SIZE * sizeof(audio_buffer[0]),
     .pAudioData = (BYTE *)audio_buffer,
     .LoopCount = 0,
   };
