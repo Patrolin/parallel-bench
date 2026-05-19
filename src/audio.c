@@ -59,10 +59,10 @@ int main() {
     NULL,
     NULL);
   assert(hr >= 0);
-// TODO: submit audio in 48kHz * 0.010s chunks
+  // submit audio buffer
+  // TODO: submit audio in tiny chunks for low latency
 #define AUDIO_CHUNK_SIZE   48000
 #define LEFT_CHANNEL_DELAY 1
-  float null_audio_buffer[256 * AUDIO_CHANNELS] = {};
   float audio_buffer[AUDIO_CHUNK_SIZE * AUDIO_CHANNELS] = {};
   _Static_assert(sizeof(audio_buffer[0]) == AUDIO_BITS_PER_SAMPLE / 8, "sizeof(audio_buffer[0]) == AUDIO_BITS_PER_SAMPLE / 8");
   for (int t = 0; t < AUDIO_CHUNK_SIZE; t++) {
