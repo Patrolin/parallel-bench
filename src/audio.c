@@ -7,6 +7,7 @@
 #include <xaudio2.h>
 #include <errhandlingapi.h>
 #include <winerror.h>
+#include <mmreg.h>
 
 #pragma comment(lib, "Ole32.lib")
 
@@ -14,7 +15,6 @@ IXAudio2 *xaudio;
 IXAudio2MasteringVoice *xaudioMasterVoice;
 IXAudio2SourceVoice *xaudioSourceVoice;
 
-bool audioBusy;
 int main() {
   // init xaudio2
   HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
@@ -33,16 +33,19 @@ int main() {
   assert(hr >= 0);
   // init buffers
 #define SAMPLE_RATE     48000
-#define CHANNELS        1
+#define CHANNELS        2
 #define BITS_PER_SAMPLE 16
   uint16_t nBlockAlign = (CHANNELS * BITS_PER_SAMPLE) / 8;
-  WAVEFORMATEX format = {
-    .wFormatTag = WAVE_FORMAT_PCM,
-    .nSamplesPerSec = SAMPLE_RATE,
-    .nChannels = CHANNELS,
-    .wBitsPerSample = BITS_PER_SAMPLE,
-    .nBlockAlign = nBlockAlign,
-    .nAvgBytesPerSec = SAMPLE_RATE * nBlockAlign,
+  WAVEFORMATEXTENSIBLE format = {
+    .Format = {
+      .wFormatTag = WAVE_FORMAT_PCM,
+      .nSamplesPerSec = SAMPLE_RATE,
+      .nChannels = CHANNELS,
+      .wBitsPerSample = BITS_PER_SAMPLE,
+      .nBlockAlign = nBlockAlign,
+      .nAvgBytesPerSec = SAMPLE_RATE * nBlockAlign,
+    },
+    .dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT,
   };
   hr = xaudio->lpVtbl->CreateSourceVoice(
     xaudio,
@@ -55,13 +58,19 @@ int main() {
     NULL);
   assert(hr >= 0);
 // TODO: submit audio in 48kHz * 0.010s chunks
-#define AUDIO_BUFFER_SIZE 48000
+#define AUDIO_BUFFER_SIZE 48000 * CHANNELS
   int16_t audio_buffer[AUDIO_BUFFER_SIZE] = {};
   for (int i = 0; i < AUDIO_BUFFER_SIZE; i++) {
-    if ((i % 100) < 50) {
-      audio_buffer[i] = 1500;
+    if (i % 2 == 0) {
+      // left channel
+      if ((i % 200) < 10) {
+        audio_buffer[i] = 1500;
+      } else {
+        audio_buffer[i] = -1500;
+      }
     } else {
-      audio_buffer[i] = -1500;
+      // right channel
+      audio_buffer[i] = 0;
     }
   }
   printf("[0]: %i\n", audio_buffer[0]);
@@ -69,7 +78,7 @@ int main() {
   printf("[100]: %i\n", audio_buffer[100]);
   XAUDIO2_BUFFER xaudioBuffer = {
     .Flags = XAUDIO2_END_OF_STREAM,
-    .AudioBytes = AUDIO_BUFFER_SIZE,
+    .AudioBytes = AUDIO_BUFFER_SIZE * sizeof(audio_buffer[0]),
     .pAudioData = (BYTE *)audio_buffer,
     .LoopCount = 0,
   };
