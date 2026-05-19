@@ -71,10 +71,10 @@ int main() {
     audio_buffer[2 * t] = left;
     audio_buffer[2 * t + 1] = right;
   }
-  printf("      [0, 1]: %i, %i\n", audio_buffer[0], audio_buffer[1]);
-  printf("    [50, 51]: %i, %i\n", audio_buffer[50], audio_buffer[51]);
-  printf("  [150, 151]: %i, %i\n", audio_buffer[150], audio_buffer[151]);
-  printf("  [250, 251]: %i, %i\n", audio_buffer[250], audio_buffer[251]);
+  printf("      [0, 1]: %f, %f\n", audio_buffer[0], audio_buffer[1]);
+  printf("    [50, 51]: %f, %f\n", audio_buffer[50], audio_buffer[51]);
+  printf("  [150, 151]: %f, %f\n", audio_buffer[150], audio_buffer[151]);
+  printf("  [250, 251]: %f, %f\n", audio_buffer[250], audio_buffer[251]);
   XAUDIO2_BUFFER xaudioBuffer = {
     .Flags = XAUDIO2_END_OF_STREAM,
     .AudioBytes = AUDIO_CHUNK_SIZE * sizeof(audio_buffer[0]),
