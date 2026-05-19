@@ -58,24 +58,23 @@ int main() {
     NULL);
   assert(hr >= 0);
 // TODO: submit audio in 48kHz * 0.010s chunks
-#define AUDIO_BUFFER_SIZE 48000 * CHANNELS
+#define AUDIO_BUFFER_SIZE  48000 * CHANNELS
+#define LEFT_CHANNEL_DELAY 10
   int16_t audio_buffer[AUDIO_BUFFER_SIZE] = {};
   for (int i = 0; i < AUDIO_BUFFER_SIZE; i++) {
-    if (i % 2 == 0) {
-      // left channel
-      if ((i % 200) < 10) {
-        audio_buffer[i] = 1500;
-      } else {
-        audio_buffer[i] = -1500;
-      }
+    bool is_left_channel = i % 2 == 0;
+    int t = (i / 2) + (is_left_channel ? LEFT_CHANNEL_DELAY : 0);
+    if ((t % 100) < 50) {
+      audio_buffer[i] = 1500;
     } else {
-      // right channel
-      audio_buffer[i] = 0;
+      audio_buffer[i] = -1500;
     }
   }
-  printf("[0]: %i\n", audio_buffer[0]);
-  printf("[50]: %i\n", audio_buffer[50]);
+  printf("  [0]: %i\n", audio_buffer[0]);
+  printf(" [50]: %i\n", audio_buffer[50]);
   printf("[100]: %i\n", audio_buffer[100]);
+  printf("[150]: %i\n", audio_buffer[150]);
+  printf("[200]: %i\n", audio_buffer[200]);
   XAUDIO2_BUFFER xaudioBuffer = {
     .Flags = XAUDIO2_END_OF_STREAM,
     .AudioBytes = AUDIO_BUFFER_SIZE * sizeof(audio_buffer[0]),
