@@ -12,8 +12,8 @@
 #pragma comment(lib, "Ole32.lib")
 
 IXAudio2 *xaudio;
-IXAudio2MasteringVoice *xaudioMasterVoice;
-IXAudio2SourceVoice *xaudioSourceVoice;
+IXAudio2MasteringVoice *xaudioMaster;
+IXAudio2SourceVoice *xaudioSource;
 
 int main() {
   // init xaudio2
@@ -23,7 +23,7 @@ int main() {
   assert(hr >= 0);
   hr = xaudio->lpVtbl->CreateMasteringVoice(
     xaudio,
-    &xaudioMasterVoice,
+    &xaudioMaster,
     XAUDIO2_DEFAULT_CHANNELS,
     XAUDIO2_DEFAULT_SAMPLERATE,
     0,
@@ -51,23 +51,26 @@ int main() {
   };
   hr = xaudio->lpVtbl->CreateSourceVoice(
     xaudio,
-    &xaudioSourceVoice,
+    &xaudioSource,
     (WAVEFORMATEX *)&format,
     0,
-    XAUDIO2_DEFAULT_FREQ_RATIO, // TODO: MaxFrequencyRatio?
+    1.0, /* NOTE: must be `1.0`, otherwise windows speeds up the sound if it's behind */
     NULL,
-    NULL, // TODO: multiple channels?
+    NULL,
     NULL);
   assert(hr >= 0);
 // TODO: submit audio in 48kHz * 0.010s chunks
 #define AUDIO_CHUNK_SIZE   48000
 #define LEFT_CHANNEL_DELAY 1
+  float null_audio_buffer[256 * AUDIO_CHANNELS] = {};
   float audio_buffer[AUDIO_CHUNK_SIZE * AUDIO_CHANNELS] = {};
   _Static_assert(sizeof(audio_buffer[0]) == AUDIO_BITS_PER_SAMPLE / 8, "sizeof(audio_buffer[0]) == AUDIO_BITS_PER_SAMPLE / 8");
   for (int t = 0; t < AUDIO_CHUNK_SIZE; t++) {
     float left = (t - LEFT_CHANNEL_DELAY) % 100 < 50 ? 0.05f : -0.05f;
     if (t - LEFT_CHANNEL_DELAY < 0) left = 0;
     float right = t % 100 < 50 ? 0.05f : -0.05f;
+
+    // TODO: delay left by 1, then delay mid by 1
     audio_buffer[2 * t] = left;
     audio_buffer[2 * t + 1] = right;
   }
@@ -75,16 +78,18 @@ int main() {
   printf("    [50, 51]: %f, %f\n", audio_buffer[50], audio_buffer[51]);
   printf("  [150, 151]: %f, %f\n", audio_buffer[150], audio_buffer[151]);
   printf("  [250, 251]: %f, %f\n", audio_buffer[250], audio_buffer[251]);
-  XAUDIO2_BUFFER xaudioBuffer = {
+
+  XAUDIO2_BUFFER audio_buffer_info = {
     .Flags = XAUDIO2_END_OF_STREAM,
-    .AudioBytes = AUDIO_CHUNK_SIZE * sizeof(audio_buffer[0]),
+    .AudioBytes = sizeof(audio_buffer),
     .pAudioData = (BYTE *)audio_buffer,
     .LoopCount = 0,
   };
-  hr = xaudioSourceVoice->lpVtbl->SubmitSourceBuffer(xaudioSourceVoice, &xaudioBuffer, NULL);
+  hr = xaudioSource->lpVtbl->SubmitSourceBuffer(xaudioSource, &audio_buffer_info, NULL);
   assert(SUCCEEDED(hr));
-  xaudioSourceVoice->lpVtbl->Start(xaudioSourceVoice, 0, 0);
+  xaudioSource->lpVtbl->Start(xaudioSource, 0, 0);
   assert(SUCCEEDED(hr));
+
   for (;;) {
     // TODO: use callback to keep generating more data
     // https://learn.microsoft.com/en-us/windows/win32/xaudio2/how-to--use-source-voice-callbacks
