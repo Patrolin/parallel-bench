@@ -1,21 +1,27 @@
-#include <assert.h>
-#include <stdbool.h>
 #define WIN32_LEAN_AND_MEAN
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdbool.h>
 #include <windows.h>
 #include <xaudio2.h>
+#include <errhandlingapi.h>
+#include <winerror.h>
+
+#pragma comment(lib, "Ole32.lib")
 
 IXAudio2 *xaudio;
 IXAudio2MasteringVoice *xaudioMasterVoice;
 IXAudio2SourceVoice *xaudioSourceVoice;
-XAUDIO2_BUFFER xaudioBuffer;
+
 bool audioBusy;
 int main() {
-  // setup
-  HRESULT result = CoInitializeEx(0, COINIT_MULTITHREADED);
-  assert(result >= 0);
-  result = XAudio2Create(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR);
-  assert(result >= 0);
-  result = IXAudio2_CreateMasteringVoice(
+  // init xaudio2
+  HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
+  assert(hr >= 0);
+  hr = XAudio2Create(&xaudio, 0, XAUDIO2_DEFAULT_PROCESSOR);
+  assert(hr >= 0);
+  hr = IXAudio2_CreateMasteringVoice(
     xaudio,
     &xaudioMasterVoice,
     XAUDIO2_DEFAULT_CHANNELS,
@@ -24,24 +30,55 @@ int main() {
     NULL,
     NULL,
     AudioCategory_GameMedia);
-  assert(result >= 0);
-  // buffer
-  WAVEFORMATEXTENSIBLE format = ...; // TODO: define a format
-  result = IXAudio2_CreateSourceVoice(
+  assert(hr >= 0);
+  // init buffers
+#define SAMPLE_RATE     48000
+#define CHANNELS        1
+#define BITS_PER_SAMPLE 16
+  uint16_t nBlockAlign = (CHANNELS * BITS_PER_SAMPLE) / 8;
+  WAVEFORMATEX format = {
+    .wFormatTag = WAVE_FORMAT_PCM,
+    .nSamplesPerSec = SAMPLE_RATE,
+    .nChannels = CHANNELS,
+    .wBitsPerSample = BITS_PER_SAMPLE,
+    .nBlockAlign = nBlockAlign,
+    .nAvgBytesPerSec = SAMPLE_RATE * nBlockAlign,
+  };
+  hr = IXAudio2_CreateSourceVoice(
     xaudio,
     &xaudioSourceVoice,
-    &format,
+    (WAVEFORMATEX *)&format,
     0,
-    XAUDIO2_DEFAULT_FREQ_RATIO, // TODO: ?
+    XAUDIO2_DEFAULT_FREQ_RATIO, // TODO: MaxFrequencyRatio?
     NULL,
-    NULL, // TODO: multiple channels
+    NULL, // TODO: multiple channels?
     NULL);
-  assert(result >= 0);
-  // TODO: submit audio in 48kHz * 0.010s chunks
+  assert(hr >= 0);
+// TODO: submit audio in 48kHz * 0.010s chunks
+#define AUDIO_BUFFER_SIZE 48000
+  int16_t audio_buffer[AUDIO_BUFFER_SIZE] = {};
+  for (int i = 0; i < AUDIO_BUFFER_SIZE; i++) {
+    if ((i % 100) < 50) {
+      audio_buffer[i] = 1500;
+    } else {
+      audio_buffer[i] = -1500;
+    }
+  }
+  printf("[0]: %i\n", audio_buffer[0]);
+  printf("[50]: %i\n", audio_buffer[50]);
+  printf("[100]: %i\n", audio_buffer[100]);
+  XAUDIO2_BUFFER xaudioBuffer = {
+    .Flags = XAUDIO2_END_OF_STREAM,
+    .AudioBytes = AUDIO_BUFFER_SIZE,
+    .pAudioData = (BYTE *)audio_buffer,
+    .LoopCount = 0,
+  };
+  hr = IXAudio2SourceVoice_SubmitSourceBuffer(xaudioSourceVoice, &xaudioBuffer, NULL);
+  assert(SUCCEEDED(hr));
+  IXAudio2SourceVoice_Start(xaudioSourceVoice, 0, 0);
+  assert(SUCCEEDED(hr));
   for (;;) {
+    // TODO: use callback to keep generating more data
     // https://learn.microsoft.com/en-us/windows/win32/xaudio2/how-to--use-source-voice-callbacks
-    // TODO: write to the buffer
-    // IXAudio2SourceVoice::SubmitSourceBuffer(...)
-    // WaitForSingleObjectEx(voiceCallback.hBufferEndEvent, INFINITE, TRUE)
   }
 }

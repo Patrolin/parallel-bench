@@ -13,3 +13,7 @@ run-gdi:
 run-dxd12-cpp:
   clang $$cppargs src/dxd12_window.cpp -o "$$DXD12_CPP_WINDOW_EXE_NAME"
   ./$$DXD12_CPP_WINDOW_EXE_NAME
+run-audio:
+  AUDIO_EXE_NAME :: "audio.exe"
+  clang $$cppargs src/audio.c -o "$$AUDIO_EXE_NAME"
+  ./$$AUDIO_EXE_NAME
