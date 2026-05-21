@@ -75,7 +75,7 @@ int main() {
     float mid = (left + right) * 0.5f;
     float side = left - right;
 
-/* NOTE: add a little bit of side channel */
+    /* NOTE: add a little bit of side channel */
 #if 1
     side += 0.05f * mid;
     mid -= 0.05f * mid;
