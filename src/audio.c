@@ -57,8 +57,9 @@ int main() {
     xaudio,
     &xaudioSource,
     (WAVEFORMATEX *)&format,
-    0,
-    1.0, /* NOTE: must be `1.0`, otherwise windows speeds up the sound if it's behind */
+    /* NOTE: try to prevent windows from speeding up the sound if it's behind */
+    XAUDIO2_VOICE_NOPITCH,
+    1.0,
     NULL,
     NULL,
     NULL);
