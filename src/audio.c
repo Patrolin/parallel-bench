@@ -15,6 +15,10 @@ IXAudio2 *xaudio;
 IXAudio2MasteringVoice *xaudioMaster;
 IXAudio2SourceVoice *xaudioSource;
 
+float square_wave(int t) {
+  if (t < 0) return 0;
+  return t % 100 < 50 ? 0.05f : -0.05f;
+}
 int main() {
   // init xaudio2
   HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
@@ -61,16 +65,30 @@ int main() {
   assert(hr >= 0);
   // submit audio buffer
   // TODO: submit audio in tiny chunks for low latency
-#define AUDIO_CHUNK_SIZE   48000
-#define LEFT_CHANNEL_DELAY 1
+#define AUDIO_CHUNK_SIZE 48000
   float audio_buffer[AUDIO_CHUNK_SIZE * AUDIO_CHANNELS] = {};
   _Static_assert(sizeof(audio_buffer[0]) == AUDIO_BITS_PER_SAMPLE / 8, "sizeof(audio_buffer[0]) == AUDIO_BITS_PER_SAMPLE / 8");
   for (int t = 0; t < AUDIO_CHUNK_SIZE; t++) {
-    float left = (t - LEFT_CHANNEL_DELAY) % 100 < 50 ? 0.05f : -0.05f;
-    if (t - LEFT_CHANNEL_DELAY < 0) left = 0;
-    float right = t % 100 < 50 ? 0.05f : -0.05f;
+    float left = square_wave(t);
+    float right = left;
 
-    // TODO: delay left by 1, then delay mid by 1
+    float mid = (left + right) * 0.5f;
+    float side = left - right;
+
+/* NOTE: add a little bit of side channel */
+#if 1
+    side += 0.05f * mid;
+    mid -= 0.05f * mid;
+#endif
+
+    left = mid + side * 0.5f;
+    right = mid - side * 0.5f;
+    if (t == 0) {
+      printf("left: %f, right: %f\n", left, right);
+      printf("mid: %f, side: %f\n", mid, side);
+    }
+
+    // TODO: all pass filter?
     audio_buffer[2 * t] = left;
     audio_buffer[2 * t + 1] = right;
   }
