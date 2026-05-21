@@ -88,7 +88,6 @@ int main() {
       printf("mid: %f, side: %f\n", mid, side);
     }
 
-    // TODO: all pass filter?
     audio_buffer[2 * t] = left;
     audio_buffer[2 * t + 1] = right;
   }
